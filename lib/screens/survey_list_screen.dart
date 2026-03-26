@@ -12,27 +12,20 @@ import 'login_screen.dart';
 // Filter model
 // ─────────────────────────────────────────────────────────────────────────────
 class _ActiveFilters {
-  // Year
-  String? year; // e.g. '2025-26'
-
-  // Location (hierarchical — store the deepest selected)
-  String? district; // 'Ahmedabad'
-  String? taluka;   // 'Daskroi'
-  String? village;  // 'Enasan'
-
-  // Date range
+  String? year;
+  String? district;
+  String? taluka;
+  String? village;
   DateTimeRange? dateRange;
-
-  // Status
   SurveyStatus? status;
 
   bool get hasAny =>
       year != null ||
-      district != null ||
-      taluka != null ||
-      village != null ||
-      dateRange != null ||
-      status != null;
+          district != null ||
+          taluka != null ||
+          village != null ||
+          dateRange != null ||
+          status != null;
 
   _ActiveFilters copyWith({
     Object? year = _sentinel,
@@ -69,6 +62,47 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
 
   _ActiveFilters _filters = _ActiveFilters();
 
+  // Bottom loader
+  final ScrollController _scrollController = ScrollController();
+  bool _showBottomLoader = false;
+  bool _hasScrolledToBottom = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+
+    /// 🔥 Detect when user is near bottom (not exact bottom)
+    final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
+
+    if (isNearBottom && !_showBottomLoader) {
+      setState(() {
+        _showBottomLoader = true;
+      });
+
+      /// Simulate loading (or call API here)
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) {
+          setState(() {
+            _showBottomLoader = false;
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   // ── Filtered surveys ──────────────────────────────────────────────────
   List<SurveyModel> get _filteredSurveys {
     return _allSurveys.where((s) {
@@ -94,7 +128,6 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     }).toList();
   }
 
-  // ── Stats (on filtered set) ───────────────────────────────────────────
   int get _pendingCount =>
       _filteredSurveys.where((s) => s.status == SurveyStatus.pending).length;
   int get _approvedCount =>
@@ -102,24 +135,11 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
   int get _rejectedCount =>
       _filteredSurveys.where((s) => s.status == SurveyStatus.rejected).length;
 
-  // ── Month helper ──────────────────────────────────────────────────────
   String _mon(int m) => const [
-        '',
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec'
-      ][m];
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ][m];
 
-  // ── Navigation ────────────────────────────────────────────────────────
   void _openDetail(int index) {
     final surveys = _filteredSurveys;
     Navigator.push(
@@ -145,8 +165,6 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // BUILD
   // ─────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -225,37 +243,21 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
               ),
             ),
             SizedBox(height: context.getHeight(8)),
-            _drawerItem(
-              icon: Icons.grid_view_rounded,
-              label: 'Surveys',
-              onTap: () => Navigator.pop(context),
-              active: true,
-            ),
-            _drawerItem(
-              icon: Icons.account_balance_wallet_rounded,
-              label: 'Bank Details',
-              onTap: () => Navigator.pop(context),
-            ),
-            _drawerItem(
-              icon: Icons.person_outline_rounded,
-              label: 'Profile',
-              onTap: () => Navigator.pop(context),
-            ),
-            _drawerItem(
-              icon: Icons.settings_outlined,
-              label: 'Settings',
-              onTap: () => Navigator.pop(context),
-            ),
+            _drawerItem(icon: Icons.grid_view_rounded, label: 'Surveys',
+                onTap: () => Navigator.pop(context), active: true),
+            _drawerItem(icon: Icons.account_balance_wallet_rounded, label: 'Bank Details',
+                onTap: () => Navigator.pop(context)),
+            _drawerItem(icon: Icons.person_outline_rounded, label: 'Profile',
+                onTap: () => Navigator.pop(context)),
+            _drawerItem(icon: Icons.settings_outlined, label: 'Settings',
+                onTap: () => Navigator.pop(context)),
             const Spacer(),
             Divider(color: AppColors.divider, height: context.getHeight(1)),
             SizedBox(height: context.getHeight(4)),
             _drawerItem(
               icon: Icons.logout_rounded,
               label: 'Logout',
-              onTap: () {
-                Navigator.pop(context);
-                _logout();
-              },
+              onTap: () { Navigator.pop(context); _logout(); },
               iconColor: AppColors.rejected,
               labelColor: AppColors.rejected,
             ),
@@ -274,56 +276,40 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     Color? iconColor,
     Color? labelColor,
   }) {
-    final ic = iconColor ??
-        (active ? AppColors.primaryDark : AppColors.textSecondary);
-    final lc = labelColor ??
-        (active ? AppColors.primaryDark : AppColors.textSecondary);
-
+    final ic = iconColor ?? (active ? AppColors.primaryDark : AppColors.textSecondary);
+    final lc = labelColor ?? (active ? AppColors.primaryDark : AppColors.textSecondary);
     return InkWell(
       onTap: onTap,
       child: Container(
         margin: EdgeInsets.symmetric(
-          horizontal: context.getWidth(8),
-          vertical: context.getHeight(2),
-        ),
+            horizontal: context.getWidth(8), vertical: context.getHeight(2)),
         padding: EdgeInsets.symmetric(
-          horizontal: context.getWidth(12),
-          vertical: context.getHeight(12),
-        ),
+            horizontal: context.getWidth(12), vertical: context.getHeight(12)),
         decoration: BoxDecoration(
           color: active ? AppColors.primaryLight : Colors.transparent,
-          borderRadius:
-              BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
         ),
         child: Row(
           children: [
             Icon(icon, size: context.getWidth(AppDimens.iconM), color: ic),
             SizedBox(width: context.getWidth(12)),
-            Text(
-              label,
-              style: TextStyle(
+            Text(label, style: TextStyle(
                 fontSize: context.getFontSize(AppDimens.fontM),
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                color: lc,
-              ),
-            ),
+                color: lc)),
           ],
         ),
       ),
     );
   }
 
-  // ── App bar — Change #4: filter icon opens filter sheet ───────────────
+  // ── App bar ───────────────────────────────────────────────────────────
   Widget _buildAppBar() {
     final hasActiveFilters = _filters.hasAny;
     return Container(
       color: AppColors.surface,
-      padding: EdgeInsets.fromLTRB(
-        context.getWidth(16),
-        context.getHeight(10),
-        context.getWidth(12),
-        context.getHeight(8),
-      ),
+      padding: EdgeInsets.fromLTRB(context.getWidth(16), context.getHeight(10),
+          context.getWidth(12), context.getHeight(8)),
       child: Row(
         children: [
           Builder(
@@ -333,29 +319,21 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                 width: context.getWidth(36),
                 height: context.getWidth(36),
                 decoration: const BoxDecoration(
-                  color: AppColors.iconBg,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.menu_rounded,
-                  color: AppColors.textSecondary,
-                  size: context.getWidth(AppDimens.iconM),
-                ),
+                    color: AppColors.iconBg, shape: BoxShape.circle),
+                child: Icon(Icons.menu_rounded,
+                    color: AppColors.textSecondary,
+                    size: context.getWidth(AppDimens.iconM)),
               ),
             ),
           ),
           SizedBox(width: context.getWidth(10)),
           Expanded(
-            child: Text(
-              'Supervisor Portal',
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontL),
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
+            child: Text('Supervisor Portal',
+                style: TextStyle(
+                    fontSize: context.getFontSize(AppDimens.fontL),
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary)),
           ),
-          // Change #4: Filter button with badge if filters active
           GestureDetector(
             onTap: _showFilterSheet,
             child: Stack(
@@ -364,35 +342,28 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                   width: context.getWidth(36),
                   height: context.getWidth(36),
                   decoration: BoxDecoration(
-                    color: hasActiveFilters
-                        ? AppColors.primaryLight
-                        : AppColors.iconBg,
+                    color: hasActiveFilters ? AppColors.primaryLight : AppColors.iconBg,
                     shape: BoxShape.circle,
                     border: hasActiveFilters
-                        ? Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.4))
+                        ? Border.all(color: AppColors.primary.withValues(alpha: 0.4))
                         : null,
                   ),
-                  child: Icon(
-                    Icons.filter_alt_rounded,
-                    color: hasActiveFilters
-                        ? AppColors.primaryDark
-                        : AppColors.textSecondary,
-                    size: context.getWidth(AppDimens.iconM - 1),
-                  ),
+                  child: Icon(Icons.filter_alt_rounded,
+                      color: hasActiveFilters
+                          ? AppColors.primaryDark
+                          : AppColors.textSecondary,
+                      size: context.getWidth(AppDimens.iconM - 1)),
                 ),
                 if (hasActiveFilters)
                   Positioned(
-                    top: 0,
-                    right: 0,
+                    top: 0, right: 0,
                     child: Container(
                       width: context.getWidth(10),
                       height: context.getWidth(10),
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.surface, width: 1.5),
-                      ),
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.surface, width: 1.5)),
                     ),
                   ),
               ],
@@ -405,25 +376,19 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     );
   }
 
-  Widget _actionButton(IconData icon) {
-    return Container(
-      width: context.getWidth(36),
-      height: context.getWidth(36),
-      decoration: const BoxDecoration(
-        color: AppColors.iconBg,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
+  Widget _actionButton(IconData icon) => Container(
+    width: context.getWidth(36),
+    height: context.getWidth(36),
+    decoration: const BoxDecoration(color: AppColors.iconBg, shape: BoxShape.circle),
+    child: Icon(icon,
         color: AppColors.textSecondary,
-        size: context.getWidth(AppDimens.iconM - 1),
-      ),
-    );
-  }
+        size: context.getWidth(AppDimens.iconM - 1)),
+  );
 
   // ── Body ──────────────────────────────────────────────────────────────
   Widget _buildBody() {
     return SingleChildScrollView(
+      controller: _scrollController,
       physics: const ClampingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,15 +396,13 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
           _buildStatusBar(),
           Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: context.getWidth(AppDimens.spaceM),
-              vertical: context.getHeight(14),
-            ),
+                horizontal: context.getWidth(AppDimens.spaceM),
+                vertical: context.getHeight(14)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildStatsCards(),
                 SizedBox(height: context.getHeight(14)),
-                // Change #5: Active filter chips
                 if (_filters.hasAny) _buildActiveFilterChips(),
                 if (_filters.hasAny) SizedBox(height: context.getHeight(10)),
                 _buildSurveyListHeader(),
@@ -449,93 +412,100 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
               ],
             ),
           ),
+          // Bottom loader — appears briefly after scrolling to the very end
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _showBottomLoader
+                ? Container(
+              key: const ValueKey('loader'),
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                  vertical: context.getHeight(18)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: context.getWidth(16),
+                    height: context.getWidth(16),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  SizedBox(width: context.getWidth(10)),
+                  Text(
+                    'Refreshing survey list…',
+                    style: TextStyle(
+                      fontSize: context.getFontSize(AppDimens.fontS),
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+                : const SizedBox.shrink(key: ValueKey('empty')),
+          ),
         ],
       ),
     );
   }
 
-  // ── Status bar ────────────────────────────────────────────────────────
   Widget _buildStatusBar() {
     return Container(
       color: AppColors.surface,
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-        context.getWidth(12),
-        0,
-        context.getWidth(12),
-        context.getHeight(12),
-      ),
+      padding: EdgeInsets.fromLTRB(context.getWidth(12), 0,
+          context.getWidth(12), context.getHeight(12)),
       child: Wrap(
         spacing: context.getWidth(8),
         runSpacing: context.getHeight(8),
         children: [
-          _statusBadge(
-              color: AppColors.pending,
-              bg: AppColors.pendingBg,
+          _statusBadge(color: AppColors.pending, bg: AppColors.pendingBg,
               label: 'Pending: $_pendingCount'),
-          _statusBadge(
-              color: AppColors.approved,
-              bg: AppColors.approvedBg,
+          _statusBadge(color: AppColors.approved, bg: AppColors.approvedBg,
               label: 'Approved: $_approvedCount'),
-          _statusBadge(
-              color: AppColors.rejected,
-              bg: AppColors.rejectedBg,
+          _statusBadge(color: AppColors.rejected, bg: AppColors.rejectedBg,
               label: 'Rejected: $_rejectedCount'),
         ],
       ),
     );
   }
 
-  Widget _statusBadge({
-    required Color color,
-    required Color bg,
-    required String label,
-  }) {
+  Widget _statusBadge({required Color color, required Color bg, required String label}) {
     final textColor =
-        color == AppColors.pending ? const Color(0xFFB45309) : color;
+    color == AppColors.pending ? const Color(0xFFB45309) : color;
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: context.getWidth(10),
-        vertical: context.getHeight(7),
-      ),
+          horizontal: context.getWidth(10), vertical: context.getHeight(7)),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(context.getWidth(9)),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
+          color: bg,
+          borderRadius: BorderRadius.circular(context.getWidth(9)),
+          border: Border.all(color: color.withValues(alpha: 0.18))),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: context.getWidth(7),
-            height: context.getWidth(7),
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
+              width: context.getWidth(7),
+              height: context.getWidth(7),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           SizedBox(width: context.getWidth(6)),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: context.getFontSize(11),
-              color: textColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(label,
+              style: TextStyle(
+                  fontSize: context.getFontSize(11),
+                  color: textColor,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  // ── Stat cards ────────────────────────────────────────────────────────
   Widget _buildStatsCards() {
     return Row(
       children: [
-        Expanded(
-          child: _statCard(title: 'TOTAL PENDING', value: '$_pendingCount'),
-        ),
+        Expanded(child: _statCard(title: 'TOTAL PENDING', value: '$_pendingCount')),
         SizedBox(width: context.getWidth(AppDimens.spaceS)),
-        Expanded(
-          child: _statCard(title: 'REVIEWED TODAY', value: '$_approvedCount'),
-        ),
+        Expanded(child: _statCard(title: 'REVIEWED TODAY', value: '$_approvedCount')),
       ],
     );
   }
@@ -543,83 +513,56 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
   Widget _statCard({required String title, required String value}) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: context.getWidth(14),
-        vertical: context.getHeight(16),
-      ),
+          horizontal: context.getWidth(14), vertical: context.getHeight(16)),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(context.getWidth(14)),
         border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: context.getWidth(10),
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: AppColors.shadowLight,
+            blurRadius: context.getWidth(10), offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            title,
-            style: TextStyle(
+          Text(title, style: TextStyle(
               fontSize: context.getFontSize(AppDimens.fontXS),
               color: AppColors.textMuted,
               letterSpacing: 0.9,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+              fontWeight: FontWeight.w600)),
           SizedBox(height: context.getHeight(6)),
-          Text(
-            value,
-            style: TextStyle(
+          Text(value, style: TextStyle(
               fontSize: context.getFontSize(AppDimens.fontXXL),
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
-              height: 1,
-            ),
-          ),
+              height: 1)),
         ],
       ),
     );
   }
 
-  // ── Change #5: Active filter chips ────────────────────────────────────
   Widget _buildActiveFilterChips() {
     final chips = <Widget>[];
 
     if (_filters.year != null) {
       chips.add(_filterChip(
-        label: _filters.year!,
-        icon: Icons.calendar_view_month_outlined,
-        onRemove: () => setState(() => _filters = _filters.copyWith(year: null)),
-      ));
+          label: _filters.year!, icon: Icons.calendar_view_month_outlined,
+          onRemove: () => setState(() => _filters = _filters.copyWith(year: null))));
     }
-
-    // Show deepest location selected
     if (_filters.village != null) {
       chips.add(_filterChip(
-        label: _filters.village!,
-        icon: Icons.location_on_outlined,
-        onRemove: () => setState(
-            () => _filters = _filters.copyWith(village: null)),
-      ));
+          label: _filters.village!, icon: Icons.location_on_outlined,
+          onRemove: () => setState(() => _filters = _filters.copyWith(village: null))));
     } else if (_filters.taluka != null) {
       chips.add(_filterChip(
-        label: _filters.taluka!,
-        icon: Icons.location_city_outlined,
-        onRemove: () =>
-            setState(() => _filters = _filters.copyWith(taluka: null, village: null)),
-      ));
+          label: _filters.taluka!, icon: Icons.location_city_outlined,
+          onRemove: () => setState(() =>
+          _filters = _filters.copyWith(taluka: null, village: null))));
     } else if (_filters.district != null) {
       chips.add(_filterChip(
-        label: _filters.district!,
-        icon: Icons.map_outlined,
-        onRemove: () => setState(() =>
-            _filters = _filters.copyWith(district: null, taluka: null, village: null)),
-      ));
+          label: _filters.district!, icon: Icons.map_outlined,
+          onRemove: () => setState(() =>
+          _filters = _filters.copyWith(district: null, taluka: null, village: null))));
     }
 
     if (_filters.dateRange != null) {
@@ -627,25 +570,19 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
       final label =
           '${dr.start.day} ${_mon(dr.start.month)} – ${dr.end.day} ${_mon(dr.end.month)}';
       chips.add(_filterChip(
-        label: label,
-        icon: Icons.date_range_outlined,
-        onRemove: () =>
-            setState(() => _filters = _filters.copyWith(dateRange: null)),
-      ));
+          label: label, icon: Icons.date_range_outlined,
+          onRemove: () =>
+              setState(() => _filters = _filters.copyWith(dateRange: null))));
     }
 
     if (_filters.status != null) {
       final statusLabel = _filters.status == SurveyStatus.pending
           ? 'Pending'
-          : _filters.status == SurveyStatus.approved
-              ? 'Approved'
-              : 'Rejected';
+          : _filters.status == SurveyStatus.approved ? 'Approved' : 'Rejected';
       chips.add(_filterChip(
-        label: statusLabel,
-        icon: Icons.info_outline_rounded,
-        onRemove: () =>
-            setState(() => _filters = _filters.copyWith(status: null)),
-      ));
+          label: statusLabel, icon: Icons.info_outline_rounded,
+          onRemove: () =>
+              setState(() => _filters = _filters.copyWith(status: null))));
     }
 
     return Column(
@@ -653,32 +590,25 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
       children: [
         Row(
           children: [
-            Text(
-              'Active Filters',
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontXS),
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
+            Text('Active Filters',
+                style: TextStyle(
+                    fontSize: context.getFontSize(AppDimens.fontXS),
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5)),
             const Spacer(),
             GestureDetector(
               onTap: () => setState(() => _filters = _ActiveFilters()),
-              child: Text(
-                'Clear All',
-                style: TextStyle(
-                  fontSize: context.getFontSize(AppDimens.fontXS),
-                  color: AppColors.primaryDark,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              child: Text('Clear All',
+                  style: TextStyle(
+                      fontSize: context.getFontSize(AppDimens.fontXS),
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w700)),
             ),
           ],
         ),
         SizedBox(height: context.getHeight(8)),
-        Wrap(spacing: context.getWidth(8), runSpacing: context.getHeight(6),
-            children: chips),
+        Wrap(spacing: context.getWidth(8), runSpacing: context.getHeight(6), children: chips),
       ],
     );
   }
@@ -701,14 +631,10 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
         children: [
           Icon(icon, size: context.getWidth(12), color: AppColors.primaryDark),
           SizedBox(width: context.getWidth(5)),
-          Text(
-            label,
-            style: TextStyle(
+          Text(label, style: TextStyle(
               fontSize: context.getFontSize(AppDimens.fontXS + 1),
               color: AppColors.primaryDark,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+              fontWeight: FontWeight.w600)),
           SizedBox(width: context.getWidth(5)),
           GestureDetector(
             onTap: onRemove,
@@ -720,45 +646,32 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     );
   }
 
-  // ── Survey list header ────────────────────────────────────────────────
   Widget _buildSurveyListHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          'Survey Plots',
-          style: TextStyle(
-            fontSize: context.getFontSize(AppDimens.fontL),
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        Text('Survey Plots',
+            style: TextStyle(
+                fontSize: context.getFontSize(AppDimens.fontL),
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary)),
         Container(
           padding: EdgeInsets.symmetric(
-            horizontal: context.getWidth(8),
-            vertical: context.getHeight(4),
-          ),
+              horizontal: context.getWidth(8), vertical: context.getHeight(4)),
           decoration: BoxDecoration(
-            color: AppColors.primaryTint,
-            borderRadius: BorderRadius.circular(
-              context.getWidth(AppDimens.radiusFull),
-            ),
-          ),
-          child: Text(
-            '${_filteredSurveys.length} SURVEYS',
-            style: TextStyle(
-              fontSize: context.getFontSize(AppDimens.fontXS),
-              color: AppColors.primaryDark,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-            ),
-          ),
+              color: AppColors.primaryTint,
+              borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusFull))),
+          child: Text('${_filteredSurveys.length} SURVEYS',
+              style: TextStyle(
+                  fontSize: context.getFontSize(AppDimens.fontXS),
+                  color: AppColors.primaryDark,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5)),
         ),
       ],
     );
   }
 
-  // ── Survey list ───────────────────────────────────────────────────────
   Widget _buildSurveyList() {
     final surveys = _filteredSurveys;
     if (surveys.isEmpty) {
@@ -770,24 +683,18 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
             Icon(Icons.search_off_rounded,
                 size: context.getWidth(40), color: AppColors.divider),
             SizedBox(height: context.getHeight(12)),
-            Text(
-              'No surveys match your filters.',
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontM),
-                color: AppColors.textMuted,
-              ),
-            ),
+            Text('No surveys match your filters.',
+                style: TextStyle(
+                    fontSize: context.getFontSize(AppDimens.fontM),
+                    color: AppColors.textMuted)),
             SizedBox(height: context.getHeight(8)),
             GestureDetector(
               onTap: () => setState(() => _filters = _ActiveFilters()),
-              child: Text(
-                'Clear Filters',
-                style: TextStyle(
-                  fontSize: context.getFontSize(AppDimens.fontS),
-                  color: AppColors.primaryDark,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              child: Text('Clear Filters',
+                  style: TextStyle(
+                      fontSize: context.getFontSize(AppDimens.fontS),
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -799,20 +706,15 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(context.getWidth(14)),
         border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: context.getWidth(12),
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: AppColors.shadowLight,
+            blurRadius: context.getWidth(12), offset: const Offset(0, 4))],
       ),
       child: Column(
         children: surveys
             .asMap()
             .entries
-            .map((e) =>
-                _surveyItem(e.value, isLast: e.key == surveys.length - 1, filteredIndex: e.key))
+            .map((e) => _surveyItem(e.value,
+            isLast: e.key == surveys.length - 1, filteredIndex: e.key))
             .toList(),
       ),
     );
@@ -840,9 +742,7 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
       child: Container(
         constraints: BoxConstraints(minHeight: context.getHeight(70)),
         padding: EdgeInsets.symmetric(
-          horizontal: context.getWidth(12),
-          vertical: context.getHeight(12),
-        ),
+            horizontal: context.getWidth(12), vertical: context.getHeight(12)),
         decoration: BoxDecoration(
           border: isLast
               ? null
@@ -858,18 +758,14 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                 color: AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(context.getWidth(8)),
                 border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                ),
+                    color: AppColors.primary.withValues(alpha: 0.25)),
               ),
               alignment: Alignment.center,
-              child: Text(
-                '${s.sequenceNumber}',
-                style: TextStyle(
-                  color: AppColors.primaryDark,
-                  fontWeight: FontWeight.w700,
-                  fontSize: context.getFontSize(15),
-                ),
-              ),
+              child: Text('${s.sequenceNumber}',
+                  style: TextStyle(
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w700,
+                      fontSize: context.getFontSize(15))),
             ),
             SizedBox(width: context.getWidth(12)),
             Expanded(
@@ -880,52 +776,38 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Survey ${s.id}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: context.getFontSize(14),
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
+                      Text('Survey ${s.id}',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: context.getFontSize(14),
+                              color: AppColors.textPrimary)),
                       _statusPill(statusStr),
                     ],
                   ),
                   SizedBox(height: context.getHeight(3)),
-                  Text(
-                    s.ownerName,
-                    style: TextStyle(
-                      fontSize: context.getFontSize(12),
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  Text(s.ownerName,
+                      style: TextStyle(
+                          fontSize: context.getFontSize(12),
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500)),
                   SizedBox(height: context.getHeight(4)),
                   Row(
                     children: [
                       Icon(Icons.location_city_outlined,
-                          size: context.getWidth(12),
-                          color: AppColors.textMuted),
+                          size: context.getWidth(12), color: AppColors.textMuted),
                       SizedBox(width: context.getWidth(4)),
-                      Text(
-                        '${s.taluka} Taluka',
-                        style: TextStyle(
-                          fontSize: context.getFontSize(10),
-                          color: AppColors.textMuted,
-                        ),
-                      ),
+                      Text('${s.taluka} Taluka',
+                          style: TextStyle(
+                              fontSize: context.getFontSize(10),
+                              color: AppColors.textMuted)),
                       SizedBox(width: context.getWidth(10)),
                       Icon(Icons.calendar_today_outlined,
-                          size: context.getWidth(12),
-                          color: AppColors.textMuted),
+                          size: context.getWidth(12), color: AppColors.textMuted),
                       SizedBox(width: context.getWidth(4)),
-                      Text(
-                        dateStr,
-                        style: TextStyle(
-                          fontSize: context.getFontSize(10),
-                          color: AppColors.textMuted,
-                        ),
-                      ),
+                      Text(dateStr,
+                          style: TextStyle(
+                              fontSize: context.getFontSize(10),
+                              color: AppColors.textMuted)),
                     ],
                   ),
                 ],
@@ -960,40 +842,33 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     }
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: context.getWidth(8),
-        vertical: context.getHeight(3),
-      ),
+          horizontal: context.getWidth(8), vertical: context.getHeight(3)),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(context.getWidth(999)),
-      ),
+          color: bg,
+          borderRadius: BorderRadius.circular(context.getWidth(999))),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: context.getWidth(6),
-            height: context.getWidth(6),
-            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-          ),
+              width: context.getWidth(6),
+              height: context.getWidth(6),
+              decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
           SizedBox(width: context.getWidth(4)),
-          Text(
-            status,
-            style: TextStyle(
-              fontSize: context.getFontSize(10),
-              color: text,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(status,
+              style: TextStyle(
+                  fontSize: context.getFontSize(10),
+                  color: text,
+                  fontWeight: FontWeight.w700)),
         ],
       ),
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────
-  // Change #4: Filter bottom sheet
+  // Change: Filter bottom sheet — all sections use DropdownButtonFormField
+  // instead of chip selectors
   // ─────────────────────────────────────────────────────────────────────
   void _showFilterSheet() {
-    // Mutable copy for the sheet
     _ActiveFilters draft = _filters.copyWith();
 
     showModalBottomSheet(
@@ -1002,8 +877,73 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
+          // Reusable styled dropdown builder
+          Widget buildDropdown<T>({
+            required String hint,
+            required T? value,
+            required List<T> items,
+            required String Function(T) labelOf,
+            required void Function(T?) onChanged,
+          }) {
+            return Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                  horizontal: context.getWidth(12),
+                  vertical: context.getHeight(2)),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(context.getWidth(10)),
+                border: Border.all(
+                    color: value != null
+                        ? AppColors.primary.withValues(alpha: 0.5)
+                        : AppColors.divider),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<T>(
+                  isExpanded: true,
+                  value: value,
+                  hint: Text(hint,
+                      style: TextStyle(
+                          fontSize: context.getFontSize(AppDimens.fontS),
+                          color: AppColors.textMuted)),
+                  items: [
+                    // "Any" / clear option
+                    DropdownMenuItem<T>(
+                      value: null,
+                      child: Text('Any',
+                          style: TextStyle(
+                              fontSize: context.getFontSize(AppDimens.fontS),
+                              color: AppColors.textMuted,
+                              fontStyle: FontStyle.italic)),
+                    ),
+                    ...items.map((item) => DropdownMenuItem<T>(
+                      value: item,
+                      child: Text(labelOf(item),
+                          style: TextStyle(
+                              fontSize: context.getFontSize(AppDimens.fontS),
+                              color: AppColors.textPrimary)),
+                    )),
+                  ],
+                  onChanged: onChanged,
+                  icon: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: value != null
+                          ? AppColors.primaryDark
+                          : AppColors.textMuted),
+                  dropdownColor: AppColors.surface,
+                  style: TextStyle(
+                      fontSize: context.getFontSize(AppDimens.fontS),
+                      color: value != null
+                          ? AppColors.primaryDark
+                          : AppColors.textPrimary,
+                      fontWeight:
+                      value != null ? FontWeight.w700 : FontWeight.w500),
+                ),
+              ),
+            );
+          }
+
           return Container(
-            height: MediaQuery.of(ctx).size.height * 0.85,
+            height: MediaQuery.of(ctx).size.height * 0.88,
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.vertical(
@@ -1011,7 +951,7 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
             ),
             child: Column(
               children: [
-                // Handle
+                // Handle + title
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                       context.getWidth(AppDimens.spaceM),
@@ -1039,9 +979,8 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                                   color: AppColors.textPrimary)),
                           const Spacer(),
                           GestureDetector(
-                            onTap: () {
-                              setSheetState(() => draft = _ActiveFilters());
-                            },
+                            onTap: () =>
+                                setSheetState(() => draft = _ActiveFilters()),
                             child: Text('Reset',
                                 style: TextStyle(
                                     fontSize: context.getFontSize(AppDimens.fontS),
@@ -1055,121 +994,91 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                 ),
                 SizedBox(height: context.getHeight(8)),
                 Divider(color: AppColors.divider, height: 1),
+
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.all(context.getWidth(AppDimens.spaceM)),
+                    padding:
+                    EdgeInsets.all(context.getWidth(AppDimens.spaceM)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Year ──────────────────────────────────────
+
+                        // ── Year ─────────────────────────────────────
                         _filterSectionTitle('Year'),
                         SizedBox(height: context.getHeight(8)),
-                        Wrap(
-                          spacing: context.getWidth(8),
-                          runSpacing: context.getHeight(8),
-                          children: ['2023-24', '2024-25', '2025-26'].map((y) {
-                            final selected = draft.year == y;
-                            return GestureDetector(
-                              onTap: () => setSheetState(() =>
-                                  draft = draft.copyWith(
-                                      year: selected ? null : y)),
-                              child: _selectableChip(label: y, selected: selected),
-                            );
-                          }).toList(),
+                        buildDropdown<String>(
+                          hint: 'Select year',
+                          value: draft.year,
+                          items: ['2023-24', '2024-25', '2025-26'],
+                          labelOf: (y) => y,
+                          onChanged: (v) =>
+                              setSheetState(() => draft = draft.copyWith(year: v)),
                         ),
 
                         SizedBox(height: context.getHeight(20)),
 
-                        // ── Location ──────────────────────────────────
+                        // ── District ──────────────────────────────────
                         _filterSectionTitle('District'),
                         SizedBox(height: context.getHeight(8)),
-                        Wrap(
-                          spacing: context.getWidth(8),
-                          runSpacing: context.getHeight(8),
-                          children:
-                              ['Ahmedabad', 'Gandhinagar', 'Anand'].map((d) {
-                            final selected = draft.district == d;
-                            return GestureDetector(
-                              onTap: () => setSheetState(() => draft =
-                                  draft.copyWith(
-                                      district: selected ? null : d,
-                                      taluka: null,
-                                      village: null)),
-                              child: _selectableChip(label: d, selected: selected),
-                            );
-                          }).toList(),
+                        buildDropdown<String>(
+                          hint: 'Select district',
+                          value: draft.district,
+                          items: ['Ahmedabad', 'Gandhinagar', 'Anand'],
+                          labelOf: (d) => d,
+                          onChanged: (v) => setSheetState(() => draft = draft.copyWith(
+                              district: v, taluka: null, village: null)),
                         ),
 
+                        // ── Taluka (shown once district is picked) ────
                         if (draft.district != null) ...[
                           SizedBox(height: context.getHeight(14)),
                           _filterSectionTitle('Taluka'),
                           SizedBox(height: context.getHeight(8)),
-                          Wrap(
-                            spacing: context.getWidth(8),
-                            runSpacing: context.getHeight(8),
-                            children: _talukaFor(draft.district!).map((t) {
-                              final selected = draft.taluka == t;
-                              return GestureDetector(
-                                onTap: () => setSheetState(() => draft =
-                                    draft.copyWith(
-                                        taluka: selected ? null : t,
-                                        village: null)),
-                                child: _selectableChip(
-                                    label: t, selected: selected),
-                              );
-                            }).toList(),
+                          buildDropdown<String>(
+                            hint: 'Select taluka',
+                            value: draft.taluka,
+                            items: _talukaFor(draft.district!),
+                            labelOf: (t) => t,
+                            onChanged: (v) => setSheetState(() =>
+                            draft = draft.copyWith(taluka: v, village: null)),
                           ),
                         ],
 
+                        // ── Village (shown once taluka is picked) ─────
                         if (draft.taluka != null) ...[
                           SizedBox(height: context.getHeight(14)),
                           _filterSectionTitle('Village'),
                           SizedBox(height: context.getHeight(8)),
-                          Wrap(
-                            spacing: context.getWidth(8),
-                            runSpacing: context.getHeight(8),
-                            children: _villageFor(draft.taluka!).map((v) {
-                              final selected = draft.village == v;
-                              return GestureDetector(
-                                onTap: () => setSheetState(() => draft =
-                                    draft.copyWith(
-                                        village: selected ? null : v)),
-                                child: _selectableChip(
-                                    label: v, selected: selected),
-                              );
-                            }).toList(),
+                          buildDropdown<String>(
+                            hint: 'Select village',
+                            value: draft.village,
+                            items: _villageFor(draft.taluka!),
+                            labelOf: (v) => v,
+                            onChanged: (v) => setSheetState(
+                                    () => draft = draft.copyWith(village: v)),
                           ),
                         ],
 
                         SizedBox(height: context.getHeight(20)),
 
-                        // ── Date range ────────────────────────────────
+                        // ── Date Range ────────────────────────────────
                         _filterSectionTitle('Date Range'),
                         SizedBox(height: context.getHeight(8)),
-                        Wrap(
-                          spacing: context.getWidth(8),
-                          runSpacing: context.getHeight(8),
-                          children: [
-                            _quickDateRange('Last 7 days', 7),
-                            _quickDateRange('Last 14 days', 14),
-                            _quickDateRange('Last 30 days', 30),
-                          ].map((entry) {
-                            final isSelected = draft.dateRange != null &&
-                                draft.dateRange!.start
-                                    .isAtSameMomentAs(entry.start) &&
-                                draft.dateRange!.end
-                                    .isAtSameMomentAs(entry.end);
-                            return GestureDetector(
-                              onTap: () => setSheetState(() => draft =
-                                  draft.copyWith(
-                                      dateRange:
-                                          isSelected ? null : entry)),
-                              child: _selectableChip(
-                                  label: _dateRangeLabel(entry),
-                                  selected: isSelected),
-                            );
-                          }).toList(),
-                        ),
+                        // // Quick preset dropdown
+                        // buildDropdown<DateTimeRange>(
+                        //   hint: 'Select date range',
+                        //   value: draft.dateRange != null
+                        //       ? _findMatchingPreset(draft.dateRange!)
+                        //       : null,
+                        //   items: [
+                        //     _quickDateRange(7),
+                        //     _quickDateRange(14),
+                        //     _quickDateRange(30),
+                        //   ],
+                        //   labelOf: (dr) => _dateRangeLabel(dr),
+                        //   onChanged: (v) => setSheetState(
+                        //           () => draft = draft.copyWith(dateRange: v)),
+                        // ),
                         SizedBox(height: context.getHeight(8)),
                         // Custom date range picker
                         GestureDetector(
@@ -1179,57 +1088,174 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                               firstDate: DateTime(2020),
                               lastDate: DateTime.now(),
                               initialDateRange: draft.dateRange,
-                              builder: (context, child) => Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: ColorScheme.light(
-                                    primary: AppColors.primary,
+                              builder: (context, child) {
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    useMaterial3: true,
+
+                                    colorScheme: ColorScheme.light(
+                                      primary: AppColors.primary,
+                                      onPrimary: Colors.white,
+                                      surface: Colors.white,
+                                      onSurface: AppColors.textPrimary,
+                                    ),
+
+                                    /// 🧊 Dialog styling
+                                    dialogTheme: DialogThemeData(
+                                      elevation: 12,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                      ),
+                                    ),
+
+                                    /// 🔘 Buttons styling
+                                    textButtonTheme: TextButtonThemeData(
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: AppColors.primary,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        textStyle: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    ),
+
+                                    /// 📅 Date Picker Theme
+                                    datePickerTheme: DatePickerThemeData(
+                                      backgroundColor: Colors.white,
+
+                                      /// 🔥 HEADER (top section)
+                                      headerBackgroundColor: AppColors.primary,
+                                      headerForegroundColor: Colors.white,
+                                      headerHeadlineStyle: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      headerHelpStyle: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                      ),
+
+                                      /// 📆 DAY CELLS
+                                      dayStyle: TextStyle(
+                                        fontSize: 14,
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+
+                                      /// 🟢 SELECTED DAY
+                                      dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                                        if (states.contains(WidgetState.selected)) {
+                                          return AppColors.primary;
+                                        }
+                                        return null;
+                                      }),
+
+                                      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                                        if (states.contains(WidgetState.selected)) {
+                                          return Colors.white;
+                                        }
+                                        return AppColors.textPrimary;
+                                      }),
+
+                                      /// 🟡 TODAY
+                                      todayBorder: BorderSide(
+                                        color: AppColors.primary,
+                                        width: 1.5,
+                                      ),
+
+                                      /// 📅 RANGE HIGHLIGHT
+                                      rangeSelectionBackgroundColor:
+                                      AppColors.primary.withValues(alpha: 0.15),
+
+                                      rangeSelectionOverlayColor:
+                                      WidgetStatePropertyAll(AppColors.primary.withValues(alpha: 0.1)),
+
+                                      /// 🧊 SHAPE
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                      ),
+
+                                      /// 🪶 ELEVATION FEEL
+                                      elevation: 10,
+                                    ),
                                   ),
-                                ),
-                                child: child!,
-                              ),
+
+                                  /// ✨ Add subtle shadow wrapper
+                                  child: Center(
+                                    child: Container(
+                                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(24),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.15),
+                                            blurRadius: 20,
+                                            offset: const Offset(0, 10),
+                                          ),
+                                        ],
+                                      ),
+                                      child: child!,
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                             if (picked != null) {
-                              setSheetState(
-                                  () => draft = draft.copyWith(dateRange: picked));
+                              setSheetState(() =>
+                              draft = draft.copyWith(dateRange: picked));
                             }
                           },
                           child: Container(
+                            width: double.infinity,
                             padding: EdgeInsets.symmetric(
-                                horizontal: context.getWidth(12),
-                                vertical: context.getHeight(10)),
+                              horizontal: context.getWidth(12),
+                              vertical: context.getHeight(20),
+                            ),
                             decoration: BoxDecoration(
-                              color: draft.dateRange != null
-                                  ? AppColors.primaryLight
-                                  : AppColors.background,
-                              borderRadius:
-                                  BorderRadius.circular(context.getWidth(8)),
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(context.getWidth(10)),
                               border: Border.all(
-                                  color: draft.dateRange != null
-                                      ? AppColors.primary.withValues(alpha: 0.4)
-                                      : AppColors.divider),
+                                color: draft.dateRange != null
+                                    ? AppColors.primary.withValues(alpha: 0.5)
+                                    : AppColors.divider,
+                              ),
                             ),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.date_range_outlined,
-                                    size: context.getWidth(16),
-                                    color: draft.dateRange != null
-                                        ? AppColors.primaryDark
-                                        : AppColors.textMuted),
+                                Icon(
+                                  Icons.date_range_outlined,
+                                  size: context.getWidth(16),
+                                  color: draft.dateRange != null
+                                      ? AppColors.primaryDark
+                                      : AppColors.textMuted,
+                                ),
                                 SizedBox(width: context.getWidth(8)),
-                                Text(
-                                  draft.dateRange != null
-                                      ? '${draft.dateRange!.start.day} ${_mon(draft.dateRange!.start.month)} – ${draft.dateRange!.end.day} ${_mon(draft.dateRange!.end.month)}'
-                                      : 'Pick custom range',
-                                  style: TextStyle(
-                                    fontSize: context.getFontSize(AppDimens.fontS),
-                                    color: draft.dateRange != null
-                                        ? AppColors.primaryDark
-                                        : AppColors.textMuted,
-                                    fontWeight: draft.dateRange != null
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
+                                Expanded(
+                                  child: Text(
+                                    draft.dateRange != null
+                                        ? '${draft.dateRange!.start.day} ${_mon(draft.dateRange!.start.month)} – ${draft.dateRange!.end.day} ${_mon(draft.dateRange!.end.month)}'
+                                        : 'Select date range',
+                                    style: TextStyle(
+                                      fontSize: context.getFontSize(AppDimens.fontS),
+                                      color: draft.dateRange != null
+                                          ? AppColors.textPrimary
+                                          : AppColors.textMuted,
+                                      fontWeight: draft.dateRange != null
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                    ),
                                   ),
+                                ),
+                                Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: context.getWidth(18),
+                                  color: draft.dateRange != null
+                                      ? AppColors.primaryDark
+                                      : AppColors.textMuted,
                                 ),
                               ],
                             ),
@@ -1241,23 +1267,21 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                         // ── Status ────────────────────────────────────
                         _filterSectionTitle('Status'),
                         SizedBox(height: context.getHeight(8)),
-                        Wrap(
-                          spacing: context.getWidth(8),
-                          runSpacing: context.getHeight(8),
-                          children: [
-                            MapEntry(SurveyStatus.pending, 'Pending'),
-                            MapEntry(SurveyStatus.approved, 'Approved'),
-                            MapEntry(SurveyStatus.rejected, 'Rejected'),
-                          ].map((entry) {
-                            final selected = draft.status == entry.key;
-                            return GestureDetector(
-                              onTap: () => setSheetState(() => draft =
-                                  draft.copyWith(
-                                      status: selected ? null : entry.key)),
-                              child: _selectableChip(
-                                  label: entry.value, selected: selected),
-                            );
-                          }).toList(),
+                        buildDropdown<SurveyStatus>(
+                          hint: 'Select status',
+                          value: draft.status,
+                          items: [
+                            SurveyStatus.pending,
+                            SurveyStatus.approved,
+                            SurveyStatus.rejected,
+                          ],
+                          labelOf: (s) => s == SurveyStatus.pending
+                              ? 'Pending'
+                              : s == SurveyStatus.approved
+                              ? 'Approved'
+                              : 'Rejected',
+                          onChanged: (v) => setSheetState(
+                                  () => draft = draft.copyWith(status: v)),
                         ),
 
                         SizedBox(height: context.getHeight(20)),
@@ -1265,6 +1289,7 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                     ),
                   ),
                 ),
+
                 // Apply button
                 Container(
                   padding: EdgeInsets.fromLTRB(
@@ -1273,8 +1298,7 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                       context.getWidth(AppDimens.spaceM),
                       context.getHeight(20)),
                   decoration: const BoxDecoration(
-                    border: Border(top: BorderSide(color: AppColors.divider)),
-                  ),
+                      border: Border(top: BorderSide(color: AppColors.divider))),
                   child: SizedBox(
                     width: double.infinity,
                     height: context.getHeight(48),
@@ -1307,42 +1331,15 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
   }
 
   Widget _filterSectionTitle(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: context.getFontSize(AppDimens.fontS),
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
-        letterSpacing: 0.3,
-      ),
-    );
-  }
-
-  Widget _selectableChip({required String label, required bool selected}) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: context.getWidth(12), vertical: context.getHeight(7)),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.primary : AppColors.background,
-        borderRadius: BorderRadius.circular(context.getWidth(999)),
-        border: Border.all(
-          color: selected
-              ? AppColors.primary
-              : AppColors.divider,
-        ),
-      ),
-      child: Text(
-        label,
+    return Text(title,
         style: TextStyle(
-          fontSize: context.getFontSize(AppDimens.fontS),
-          color: selected ? Colors.white : AppColors.textSecondary,
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        ),
-      ),
-    );
+            fontSize: context.getFontSize(AppDimens.fontS),
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+            letterSpacing: 0.3));
   }
 
-  // Dummy location hierarchy data
+  // Dummy location hierarchy
   List<String> _talukaFor(String district) {
     const map = {
       'Ahmedabad': ['Daskroi', 'Dholka', 'Sanand'],
@@ -1367,10 +1364,19 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     return map[taluka] ?? [];
   }
 
-  DateTimeRange _quickDateRange(String label, int days) {
+  DateTimeRange _quickDateRange(int days) {
     final end = DateTime.now();
     final start = end.subtract(Duration(days: days));
     return DateTimeRange(start: start, end: end);
+  }
+
+  /// Finds a matching preset if the draft date range was set from a preset.
+  DateTimeRange? _findMatchingPreset(DateTimeRange dr) {
+    for (final days in [7, 14, 30]) {
+      final preset = _quickDateRange(days);
+      if (dr.duration.inDays == preset.duration.inDays) return preset;
+    }
+    return null;
   }
 
   String _dateRangeLabel(DateTimeRange dr) {

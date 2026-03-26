@@ -4,8 +4,8 @@ import '../core/app_dimensions.dart';
 import '../models/survey_model.dart';
 
 // Fixed column widths for the horizontally-scrollable table
-const double _colPhoto  = 52;
-const double _colLand   = 130;
+const double _colPhoto  = 40;
+const double _colLand   = 150;
 const double _colCrop   = 110;
 const double _colArea   = 80;
 const double _colView   = 36;
@@ -48,6 +48,9 @@ class ReviewedImagesTable extends StatelessWidget {
           SizedBox(
             width: _colPhoto,
             child: Text('PHOTOS', style: _headerStyle(context)),
+          ),
+          SizedBox(
+            width: context.getWidth(50),
           ),
           SizedBox(
             width: _colLand,
@@ -125,6 +128,36 @@ class ReviewedImagesTable extends StatelessWidget {
             ),
           ),
 
+          // ── View icon ───────────────────────────────────────────────
+          if (canView)
+            SizedBox(
+              width: _colView,
+              child: GestureDetector(
+                onTap: () => onViewTap!(index),
+                child: Center(
+                  child: Container(
+                    padding: EdgeInsets.all(context.getWidth(4)),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius:
+                      BorderRadius.circular(context.getWidth(6)),
+                      border: Border.all(
+                          color:
+                          AppColors.primary.withValues(alpha: 0.3)),
+                    ),
+                    child: Icon(Icons.info_outline_rounded,
+                        size: context.getWidth(14),
+                        color: AppColors.primaryDark),
+                  ),
+                ),
+              ),
+            ),
+          
+          
+          SizedBox(
+            width: context.getWidth(15),
+          ),
+
           // ── Land Usage ──────────────────────────────────────────────
           SizedBox(
             width: _colLand,
@@ -175,31 +208,6 @@ class ReviewedImagesTable extends StatelessWidget {
               ],
             ),
           ),
-
-          // ── View icon ───────────────────────────────────────────────
-          if (canView)
-            SizedBox(
-              width: _colView,
-              child: GestureDetector(
-                onTap: () => onViewTap!(index),
-                child: Center(
-                  child: Container(
-                    padding: EdgeInsets.all(context.getWidth(4)),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius:
-                          BorderRadius.circular(context.getWidth(6)),
-                      border: Border.all(
-                          color:
-                              AppColors.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Icon(Icons.info_outline_rounded,
-                        size: context.getWidth(14),
-                        color: AppColors.primaryDark),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

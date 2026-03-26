@@ -46,7 +46,7 @@ const List<SurveyPhoto> _dummyPhotos = [
   ),
 ];
 
-// ── Change #10: per-item field data ───────────────────────────────────────────
+// ── Per-item field data ───────────────────────────────────────────────────────
 class _ItemFieldData {
   final String landUsage;
   final String cropAreaType;
@@ -122,7 +122,7 @@ const List<_ItemFieldData> _dummyItemFields = [
   ),
 ];
 
-// Rejection reasons for Change #3
+// Rejection reasons
 const List<String> _rejectionReasons = [
   'Poor image quality',
   'Incorrect boundary mapping',
@@ -155,10 +155,11 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
 
   int _selection = 0;
 
-  // Change #2: bottom bar visible only after user has scrolled to the very bottom
+  // Change: bottom loader — visible after scrolled to end
   bool _hasScrolledToBottom = false;
+  bool _showBottomLoader = false;
 
-  // Change #3: rejection form state
+  // Rejection form state
   String? _selectedRejectionReason;
   final TextEditingController _remarksController = TextEditingController();
 
@@ -175,14 +176,20 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
     _scrollController.addListener(_onScroll);
   }
 
-  // Change #2: fires when the user has scrolled to (within 1px of) maxScrollExtent,
-  // which is the bottom of the visible scroll area — i.e. the bottom of the screen.
+  // Change: show loader briefly when scrolled to bottom
   void _onScroll() {
     if (!_scrollController.hasClients) return;
     final max = _scrollController.position.maxScrollExtent;
     final cur = _scrollController.offset;
     if (cur >= max - 1 && !_hasScrolledToBottom) {
-      setState(() => _hasScrolledToBottom = true);
+      setState(() {
+        _hasScrolledToBottom = true;
+        _showBottomLoader = true;
+      });
+      // Auto-hide the loader after 1.2 s
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) setState(() => _showBottomLoader = false);
+      });
     }
   }
 
@@ -206,14 +213,14 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
 
   List<PhotoStatus> get _currentStatuses =>
       _photoStatuses[_survey.id] ??
-      List.generate(_dummyPhotos.length, (_) => PhotoStatus.pending);
+          List.generate(_dummyPhotos.length, (_) => PhotoStatus.pending);
 
   bool get _hasRejectedPhoto =>
       _currentStatuses.any((s) => s == PhotoStatus.rejected);
 
   bool get _isActioned =>
       _survey.status == SurveyStatus.approved ||
-      _survey.status == SurveyStatus.rejected;
+          _survey.status == SurveyStatus.rejected;
 
   void _goPrevious() {
     if (_idx > 0) {
@@ -221,6 +228,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
         _idx--;
         _selection = 0;
         _hasScrolledToBottom = false;
+        _showBottomLoader = false;
         _selectedRejectionReason = null;
         _remarksController.clear();
         _tabController.index = 0;
@@ -235,6 +243,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
         _idx++;
         _selection = 0;
         _hasScrolledToBottom = false;
+        _showBottomLoader = false;
         _selectedRejectionReason = null;
         _remarksController.clear();
         _tabController.index = 0;
@@ -297,7 +306,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
               Navigator.pop(ctx);
               setState(() {
                 _survey.status =
-                    approve ? SurveyStatus.approved : SurveyStatus.rejected;
+                approve ? SurveyStatus.approved : SurveyStatus.rejected;
               });
               if (_idx < widget.surveys.length - 1) {
                 Future.delayed(const Duration(milliseconds: 400), _goNext);
@@ -305,7 +314,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
             },
             style: ElevatedButton.styleFrom(
               backgroundColor:
-                  approve ? AppColors.approved : AppColors.rejected,
+              approve ? AppColors.approved : AppColors.rejected,
               elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(context.getWidth(8))),
@@ -333,10 +342,10 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
   }
 
   void _cancel() => setState(() {
-        _selection = 0;
-        _selectedRejectionReason = null;
-        _remarksController.clear();
-      });
+    _selection = 0;
+    _selectedRejectionReason = null;
+    _remarksController.clear();
+  });
 
   String _fmt(DateTime dt) {
     final d = dt.day.toString().padLeft(2, '0');
@@ -372,8 +381,6 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
                 ],
               ),
             ),
-            // Change #2: bottom bar appears only after reaching screen bottom
-            if (_hasScrolledToBottom || _isActioned) _buildBottomBar(),
           ],
         ),
       ),
@@ -542,7 +549,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
                       style: TextStyle(fontWeight: FontWeight.w700)),
                   TextSpan(
                       text:
-                          'Before giving final approval or rejection of a survey, '
+                      'Before giving final approval or rejection of a survey, '
                           'please review all the surveyed images carefully.'),
                 ],
               ),
@@ -564,7 +571,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
         indicatorWeight: 2.5,
         isScrollable: false,
         labelPadding:
-            EdgeInsets.symmetric(horizontal: context.getWidth(4)),
+        EdgeInsets.symmetric(horizontal: context.getWidth(4)),
         labelStyle: TextStyle(
             fontSize: context.getFontSize(AppDimens.fontS),
             fontWeight: FontWeight.w700),
@@ -604,38 +611,37 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
           SizedBox(height: context.getHeight(14)),
           _buildReviewedImagesCard(s),
           SizedBox(height: context.getHeight(16)),
-          // Change #2: scroll-to-bottom hint shown until bottom bar appears
-          if (!_hasScrolledToBottom && !_isActioned) _buildScrollHint(),
+          _buildBottomBar(),
           SizedBox(height: context.getHeight(8)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScrollHint() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-          horizontal: context.getWidth(12), vertical: context.getHeight(10)),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(context.getWidth(8)),
-        border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.keyboard_arrow_down_rounded,
-              size: context.getWidth(16), color: AppColors.primaryDark),
-          SizedBox(width: context.getWidth(6)),
-          Text(
-            'Scroll to bottom to approve or reject',
-            style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.primaryDark,
-                fontWeight: FontWeight.w600),
-          ),
+          // Change: bottom loader — shown briefly after scrolling to end
+          if (_showBottomLoader)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: context.getHeight(12)),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: context.getWidth(18),
+                      height: context.getWidth(18),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    SizedBox(width: context.getWidth(8)),
+                    Text(
+                      'Loading more details…',
+                      style: TextStyle(
+                        fontSize: context.getFontSize(AppDimens.fontS),
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -685,8 +691,8 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
     );
   }
 
-  // Change #6: View icon removed from header; now per-item inside the table
-  // Change #7: table wrapped in horizontal scroll
+  // Change: horizontally scrollable reviewed images card
+  // View icon is positioned beside each image thumbnail (handled in ReviewedImagesTable via onViewTap)
   Widget _buildReviewedImagesCard(SurveyModel s) {
     final totalCount = s.reviewedImages.length;
 
@@ -735,13 +741,13 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
             ),
           ),
           SizedBox(height: context.getHeight(8)),
-          // Change #7: horizontally scrollable
+          // Horizontally scrollable table
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ReviewedImagesTable(
               images: s.reviewedImages,
               onImageTap: _openFullscreen,
-              // Change #6: per-item view icon → opens bottom sheet for that item
+              // View icon is rendered beside the image thumbnail inside the table
               onViewTap: (index) => _openImageDetailViewer(s, index),
             ),
           ),
@@ -750,7 +756,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
     );
   }
 
-  // Change #1: single photo, no swipe
+  // Single photo, no swipe
   void _openFullscreen(int startIndex) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -772,7 +778,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
     );
   }
 
-  // Change #6: opens Image Details bottom sheet starting at tapped item
+  // Opens Image Details bottom sheet starting at tapped item
   void _openImageDetailViewer(SurveyModel s, int startIndex) {
     showModalBottomSheet(
       context: context,
@@ -819,10 +825,11 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
     return Container(
       padding: EdgeInsets.fromLTRB(context.getWidth(14), context.getHeight(12),
           context.getWidth(14), context.getHeight(16)),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.divider)),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusM)),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: const [
           BoxShadow(
               color: AppColors.shadowMedium,
               blurRadius: 10,
@@ -857,7 +864,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
                       style: TextStyle(
                           color: AppColors.rejected,
                           fontSize:
-                              context.getFontSize(AppDimens.fontXS + 1),
+                          context.getFontSize(AppDimens.fontXS + 1),
                           fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -912,7 +919,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
               ],
             ),
 
-            // Change #3: rejection form — visible only when Reject is selected
+            // Rejection form — visible only when Reject is selected
             if (_selection == 2) ...[
               SizedBox(height: context.getHeight(12)),
               Container(
@@ -940,13 +947,13 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
                     ),
                     items: _rejectionReasons
                         .map((r) => DropdownMenuItem(
-                              value: r,
-                              child: Text(r,
-                                  style: TextStyle(
-                                      fontSize: context
-                                          .getFontSize(AppDimens.fontS),
-                                      color: AppColors.textPrimary)),
-                            ))
+                      value: r,
+                      child: Text(r,
+                          style: TextStyle(
+                              fontSize: context
+                                  .getFontSize(AppDimens.fontS),
+                              color: AppColors.textPrimary)),
+                    ))
                         .toList(),
                     onChanged: (v) =>
                         setState(() => _selectedRejectionReason = v),
@@ -975,17 +982,17 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
                   fillColor: AppColors.background,
                   border: OutlineInputBorder(
                     borderRadius:
-                        BorderRadius.circular(context.getWidth(8)),
+                    BorderRadius.circular(context.getWidth(8)),
                     borderSide: const BorderSide(color: AppColors.divider),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius:
-                        BorderRadius.circular(context.getWidth(8)),
+                    BorderRadius.circular(context.getWidth(8)),
                     borderSide: const BorderSide(color: AppColors.divider),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius:
-                        BorderRadius.circular(context.getWidth(8)),
+                    BorderRadius.circular(context.getWidth(8)),
                     borderSide: BorderSide(color: AppColors.primary),
                   ),
                 ),
@@ -1015,7 +1022,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w600,
                             fontSize:
-                                context.getFontSize(AppDimens.fontM))),
+                            context.getFontSize(AppDimens.fontM))),
                   ),
                 ),
               ),
@@ -1029,7 +1036,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       disabledBackgroundColor:
-                          AppColors.primary.withValues(alpha: 0.4),
+                      AppColors.primary.withValues(alpha: 0.4),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
@@ -1040,7 +1047,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                             fontSize:
-                                context.getFontSize(AppDimens.fontM))),
+                            context.getFontSize(AppDimens.fontM))),
                   ),
                 ),
               ),
@@ -1104,7 +1111,7 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius:
-            BorderRadius.circular(context.getWidth(AppDimens.radiusM)),
+        BorderRadius.circular(context.getWidth(AppDimens.radiusM)),
         border: Border.all(color: AppColors.divider),
         boxShadow: const [
           BoxShadow(
@@ -1118,9 +1125,9 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
   }
 
   Widget _divider() => Padding(
-        padding: EdgeInsets.symmetric(vertical: context.getHeight(10)),
-        child: const Divider(height: 1, color: AppColors.divider),
-      );
+    padding: EdgeInsets.symmetric(vertical: context.getHeight(10)),
+    child: const Divider(height: 1, color: AppColors.divider),
+  );
 
   void _showOwnersSheet() {
     final s = _survey;
@@ -1205,7 +1212,6 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Image Detail Viewer (Bottom Sheet)
-// Changes #8, #9, #10
 // ─────────────────────────────────────────────────────────────────────────────
 class _ImageDetailViewer extends StatefulWidget {
   final SurveyModel survey;
@@ -1213,7 +1219,7 @@ class _ImageDetailViewer extends StatefulWidget {
   final List<SurveyPhoto> photosPerItem;
   final List<PhotoStatus> photoStatuses;
   final void Function(int itemIdx, int photoIdx, PhotoStatus status)
-      onStatusChanged;
+  onStatusChanged;
 
   const _ImageDetailViewer({
     required this.survey,
@@ -1230,7 +1236,7 @@ class _ImageDetailViewer extends StatefulWidget {
 class _ImageDetailViewerState extends State<_ImageDetailViewer> {
   late PageController _itemPageController;
   late int _currentItem;
-  late List<int> _imageIndexPerItem; // which photo is active for each item
+  late List<int> _imageIndexPerItem;
 
   static const List<Color> _placeholderColors = [
     Color(0xFFD6E8D0),
@@ -1287,7 +1293,7 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
       ),
       child: Column(
         children: [
-          // ── Handle + header ──────────────────────────────────────────
+          // Handle + header
           Padding(
             padding: EdgeInsets.fromLTRB(
               context.getWidth(AppDimens.spaceM),
@@ -1318,14 +1324,15 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
                             'Image Details',
                             style: TextStyle(
                               fontSize:
-                                  context.getFontSize(AppDimens.fontXL),
+                              context.getFontSize(AppDimens.fontXL),
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
                           ),
                           SizedBox(height: context.getHeight(2)),
                           Text(
-                            'Swipe image ↔ for photos · Swipe page ↔ for items',
+                            // Change: image swiping not allowed — updated hint text
+                            'Swipe page ↔ to navigate between items',
                             style: TextStyle(
                               fontSize: context.getFontSize(AppDimens.fontS),
                               color: AppColors.textMuted,
@@ -1383,7 +1390,7 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
           SizedBox(height: context.getHeight(12)),
           Divider(color: AppColors.divider, height: 1),
 
-          // ── Outer PageView: swipe BELOW image area = navigate items ──
+          // Outer PageView: swipe to navigate items
           Expanded(
             child: PageView.builder(
               controller: _itemPageController,
@@ -1396,7 +1403,6 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
                 final photoCount = photos.length;
                 final fields = _fieldsForItem(itemIdx);
 
-                // Change #9: each page scrolls vertically
                 return SingleChildScrollView(
                   physics: const ClampingScrollPhysics(),
                   padding: EdgeInsets.all(
@@ -1429,8 +1435,8 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
 
                       SizedBox(height: context.getHeight(12)),
 
-                      // Change #8: inner PageView — swipe ON the image
-                      // to see multiple photos for this item
+                      // Change: image swiping NOT allowed — static image display
+                      // using an IndexedStack + manual prev/next arrows instead of a swipeable PageView
                       Stack(
                         children: [
                           ClipRRect(
@@ -1438,60 +1444,107 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
                                 context.getWidth(AppDimens.radiusM)),
                             child: SizedBox(
                               height: context.getHeight(200),
-                              child: PageView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: photoCount,
-                                onPageChanged: (imgIdx) =>
+                              width: double.infinity,
+                              // Static placeholder — no PageView swipe
+                              child: SizedBox(
+                                height: context.getHeight(200),
+                                width: double.infinity,
+                                child: PageView.builder(
+                                  itemCount: photoCount,
+                                  controller: PageController(initialPage: currentImageIdx),
+                                  onPageChanged: (index) {
                                     setState(() {
-                                  _imageIndexPerItem[itemIdx] = imgIdx;
-                                }),
-                                itemBuilder: (_, imgIdx) {
-                                  final imgBg = _placeholderColors[
-                                      (itemIdx + imgIdx) %
-                                          _placeholderColors.length];
-                                  return Container(
-                                    color: imgBg,
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.image_outlined,
-                                          size: context.getWidth(40),
-                                          color: AppColors.textMuted,
-                                        ),
-                                        SizedBox(
-                                            height:
-                                                context.getHeight(8)),
-                                        Text(
-                                          'Photo ${imgIdx + 1} of $photoCount',
-                                          style: TextStyle(
-                                            fontSize: context.getFontSize(
-                                                AppDimens.fontM),
-                                            fontWeight: FontWeight.w600,
-                                            color:
-                                                AppColors.textSecondary,
-                                          ),
-                                        ),
-                                        SizedBox(
-                                            height:
-                                                context.getHeight(4)),
-                                        Text(
-                                          '← Swipe to see more photos →',
-                                          style: TextStyle(
-                                            fontSize: context.getFontSize(
-                                                AppDimens.fontXS),
+                                      _imageIndexPerItem[itemIdx] = index;
+                                    });
+                                  },
+                                  itemBuilder: (context, index) {
+                                    return Container(
+                                      color: _placeholderColors[
+                                      (itemIdx + index) % _placeholderColors.length],
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.image_outlined,
+                                            size: context.getWidth(40),
                                             color: AppColors.textMuted,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                                          SizedBox(height: context.getHeight(8)),
+                                          Text(
+                                            'Photo ${index + 1} of $photoCount',
+                                            style: TextStyle(
+                                              fontSize: context.getFontSize(AppDimens.fontM),
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           ),
-                          // Photo dot indicators overlaid on image
+                          // Left arrow — navigate photos via buttons, NOT swipe
+                          if (currentImageIdx > 0)
+                            Positioned(
+                              left: context.getWidth(6),
+                              top: 0,
+                              bottom: 0,
+                              child: Center(
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    _imageIndexPerItem[itemIdx] =
+                                        currentImageIdx - 1;
+                                  }),
+                                  child: Container(
+                                    width: context.getWidth(28),
+                                    height: context.getWidth(28),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black
+                                          .withValues(alpha: 0.35),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.chevron_left_rounded,
+                                      color: Colors.white,
+                                      size: context.getWidth(18),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // Right arrow
+                          if (currentImageIdx < photoCount - 1)
+                            Positioned(
+                              right: context.getWidth(6),
+                              top: 0,
+                              bottom: 0,
+                              child: Center(
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    _imageIndexPerItem[itemIdx] =
+                                        currentImageIdx + 1;
+                                  }),
+                                  child: Container(
+                                    width: context.getWidth(28),
+                                    height: context.getWidth(28),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black
+                                          .withValues(alpha: 0.35),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Colors.white,
+                                      size: context.getWidth(18),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // Dot indicators (still useful as position indicator)
                           if (photoCount > 1)
                             Positioned(
                               bottom: context.getHeight(8),
@@ -1499,15 +1552,15 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
                               right: 0,
                               child: Row(
                                 mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                MainAxisAlignment.center,
                                 children: List.generate(
                                   photoCount,
-                                  (i) => AnimatedContainer(
+                                      (i) => AnimatedContainer(
                                     duration: const Duration(
                                         milliseconds: 200),
                                     margin: EdgeInsets.symmetric(
                                         horizontal:
-                                            context.getWidth(3)),
+                                        context.getWidth(3)),
                                     width: context.getWidth(
                                         currentImageIdx == i ? 16 : 6),
                                     height: context.getWidth(6),
@@ -1515,9 +1568,9 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
                                       color: currentImageIdx == i
                                           ? Colors.white
                                           : Colors.white
-                                              .withValues(alpha: 0.5),
+                                          .withValues(alpha: 0.5),
                                       borderRadius:
-                                          BorderRadius.circular(3),
+                                      BorderRadius.circular(3),
                                     ),
                                   ),
                                 ),
@@ -1528,7 +1581,7 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
 
                       SizedBox(height: context.getHeight(16)),
 
-                      // Change #10: field data card with the specified fields
+                      // Field data card
                       _detailCard(
                         children: [
                           _detailRow(
@@ -1560,7 +1613,7 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
                             label: 'Crop Status',
                             value: fields.cropStatus,
                             valueColor:
-                                _cropStatusColor(fields.cropStatus),
+                            _cropStatusColor(fields.cropStatus),
                           ),
                           _detailDivider(),
                           _detailRow(
@@ -1591,21 +1644,21 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
             ),
           ),
 
-          // ── Item-level dot indicators ─────────────────────────────────
+          // Item-level dot indicators
           if (total > 1)
             Padding(
               padding:
-                  EdgeInsets.symmetric(vertical: context.getHeight(10)),
+              EdgeInsets.symmetric(vertical: context.getHeight(10)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   total,
-                  (i) => AnimatedContainer(
+                      (i) => AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     margin: EdgeInsets.symmetric(
                         horizontal: context.getWidth(3)),
                     width:
-                        context.getWidth(_currentItem == i ? 18 : 6),
+                    context.getWidth(_currentItem == i ? 18 : 6),
                     height: context.getWidth(6),
                     decoration: BoxDecoration(
                       color: _currentItem == i
@@ -1680,7 +1733,7 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fullscreen Photo Viewer
-// Change #1: single photo — no swipe navigation
+// Single photo — no swipe navigation
 // ─────────────────────────────────────────────────────────────────────────────
 class _FullscreenPhotoViewer extends StatefulWidget {
   final List<SurveyPhoto> photos;
@@ -1700,26 +1753,45 @@ class _FullscreenPhotoViewer extends StatefulWidget {
       _FullscreenPhotoViewerState();
 }
 
-class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
+class _FullscreenPhotoViewerState
+    extends State<_FullscreenPhotoViewer> {
   late List<PhotoStatus> _statuses;
+
+  int _currentIndex = 0;
+
+  /// 🔥 3 Dummy Images (colors for now)
+  final List<Color> _dummyImages = [
+    Colors.red,
+    Colors.green,
+    Colors.blue,
+  ];
 
   @override
   void initState() {
     super.initState();
     _statuses = List<PhotoStatus>.from(widget.photoStatuses);
+    _currentIndex = widget.initialIndex;
   }
 
   void _toggleStatus(PhotoStatus s) {
+    final idx = _currentIndex % _statuses.length;
+
     final next =
-        _statuses[0] == s ? PhotoStatus.pending : s;
-    setState(() => _statuses[0] = next);
-    widget.onStatusChanged(0, next);
+    _statuses[idx] == s ? PhotoStatus.pending : s;
+
+    setState(() => _statuses[idx] = next);
+
+    widget.onStatusChanged(idx, next);
   }
 
   @override
   Widget build(BuildContext context) {
-    final photo = widget.photos[0];
-    final status = _statuses[0];
+    final photo =
+    widget.photos[_currentIndex % widget.photos.length];
+
+    final status =
+    _statuses[_currentIndex % _statuses.length];
+
     final isApproved = status == PhotoStatus.approved;
     final isRejected = status == PhotoStatus.rejected;
 
@@ -1727,32 +1799,100 @@ class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Single static photo — no PageView, no swipe (Change #1)
-          Container(
-            color: Colors.grey[900],
-            child: const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.image_outlined, size: 64, color: Colors.white24),
-                  SizedBox(height: 12),
-                  Text('Survey Image',
-                      style:
-                          TextStyle(color: Colors.white54, fontSize: 14)),
-                ],
+          /// 📸 IMAGE VIEW (DUMMY)
+          Positioned.fill(
+            top: MediaQuery.of(context).padding.top + 70,   // below top bar
+            bottom: MediaQuery.of(context).padding.bottom + 140, // above buttons
+            child: Container(
+              color: Colors.black,
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                child: Container(
+                  color: _dummyImages[_currentIndex],
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.image_outlined,
+                            size: 64, color: Colors.white24),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Image ${_currentIndex + 1} of 3',
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
 
+          /// ⬅️ LEFT BUTTON (same style)
+          if (_currentIndex > 0)
+            Positioned(
+              left: 12,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => _currentIndex--);
+                  },
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.chevron_left,
+                        color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
+
+          /// ➡️ RIGHT BUTTON (same style)
+          if (_currentIndex < 2)
+            Positioned(
+              right: 12,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => _currentIndex++);
+                  },
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.chevron_right,
+                        color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
+
+          /// 🔝 TOP BAR (UNCHANGED)
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: Container(
               color: Colors.black.withValues(alpha: 0.6),
               padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + 8,
-                  bottom: 12,
-                  left: 8,
-                  right: 16),
+                top: MediaQuery.of(context).padding.top + 8,
+                bottom: 12,
+                left: 8,
+                right: 16,
+              ),
               child: Row(
                 children: [
                   Container(
@@ -1782,12 +1922,19 @@ class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
             ),
           ),
 
+          /// 🔽 BOTTOM ACTIONS (UNCHANGED)
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Container(
               color: Colors.black.withValues(alpha: 0.75),
-              padding: EdgeInsets.fromLTRB(16, 12, 16,
-                  MediaQuery.of(context).padding.bottom + 16),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                MediaQuery.of(context).padding.bottom + 16,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1801,18 +1948,23 @@ class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
                               _toggleStatus(PhotoStatus.rejected);
                               Navigator.pop(context);
                             },
-                            icon: Icon(Icons.cancel_rounded,
-                                size: 18,
+                            icon: Icon(
+                              Icons.cancel_rounded,
+                              size: 18,
+                              color: isRejected
+                                  ? Colors.white
+                                  : AppColors.rejected,
+                            ),
+                            label: Text(
+                              'Reject Photo',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
                                 color: isRejected
                                     ? Colors.white
-                                    : AppColors.rejected),
-                            label: Text('Reject Photo',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                    color: isRejected
-                                        ? Colors.white
-                                        : AppColors.rejected)),
+                                    : AppColors.rejected,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isRejected
                                   ? AppColors.rejected
@@ -1820,10 +1972,11 @@ class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius:
-                                    BorderRadius.circular(10),
+                                BorderRadius.circular(10),
                                 side: BorderSide(
-                                    color: AppColors.rejected
-                                        .withValues(alpha: 0.6)),
+                                  color: AppColors.rejected
+                                      .withValues(alpha: 0.6),
+                                ),
                               ),
                             ),
                           ),
@@ -1836,18 +1989,23 @@ class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
                           child: ElevatedButton.icon(
                             onPressed: () =>
                                 _toggleStatus(PhotoStatus.approved),
-                            icon: Icon(Icons.check_circle_rounded,
-                                size: 18,
+                            icon: Icon(
+                              Icons.check_circle_rounded,
+                              size: 18,
+                              color: isApproved
+                                  ? Colors.white
+                                  : AppColors.approved,
+                            ),
+                            label: Text(
+                              'Approve Photo',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
                                 color: isApproved
                                     ? Colors.white
-                                    : AppColors.approved),
-                            label: Text('Approve Photo',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                    color: isApproved
-                                        ? Colors.white
-                                        : AppColors.approved)),
+                                    : AppColors.approved,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isApproved
                                   ? AppColors.approved
@@ -1855,10 +2013,11 @@ class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius:
-                                    BorderRadius.circular(10),
+                                BorderRadius.circular(10),
                                 side: BorderSide(
-                                    color: AppColors.approved
-                                        .withValues(alpha: 0.6)),
+                                  color: AppColors.approved
+                                      .withValues(alpha: 0.6),
+                                ),
                               ),
                             ),
                           ),
@@ -1866,7 +2025,10 @@ class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 10),
+
+                  /// INFO (SAFE)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
