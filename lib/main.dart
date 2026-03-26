@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
       ),
       home: AppState.instance.isLoggedIn
           ? const SurveyListScreen()
-          : const LoginScreen(),
+          : const SurveyListScreen(),
     );
   }
 }

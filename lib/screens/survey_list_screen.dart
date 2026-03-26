@@ -144,6 +144,10 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     );
   }
 
+  Future<void> _clearAllFilters() async {
+    await _updateFilters(_ActiveFilters());
+  }
+
   _ActiveFilters _filtersFromEntity(FilterPreferencesEntity entity) {
     final filters = _ActiveFilters();
     filters.year = entity.year;
@@ -858,7 +862,7 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
             ),
             const Spacer(),
             GestureDetector(
-              onTap: () => setState(() => _filters = _ActiveFilters()),
+              onTap: _clearAllFilters,
               child: Text(
                 'Clear All',
                 style: TextStyle(
@@ -986,7 +990,7 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
             ),
             SizedBox(height: context.getHeight(8)),
             GestureDetector(
-              onTap: () => setState(() => _filters = _ActiveFilters()),
+              onTap: _clearAllFilters,
               child: Text(
                 'Clear Filters',
                 style: TextStyle(
