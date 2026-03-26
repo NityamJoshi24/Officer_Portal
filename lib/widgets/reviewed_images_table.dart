@@ -1,333 +1,242 @@
 import 'package:flutter/material.dart';
+
 import '../core/app_colors.dart';
 import '../core/app_dimensions.dart';
-import '../models/survey_model.dart';
 
-// Fixed column widths for the horizontally-scrollable table
-const double _colPhoto  = 40;
-const double _colLand   = 150;
-const double _colCrop   = 110;
-const double _colArea   = 80;
-const double _colView   = 36;
+// ── Column definition ─────────────────────────────────────────────────────────
+class _Col {
+  final String header;
+  final double width;
+  const _Col(this.header, this.width);
+}
 
+const List<_Col> _columns = [
+  _Col('Photo',                110),
+  _Col('Land Usage',           110),
+  _Col('Crop / Area Type',     130),
+  _Col('Area',                  90),
+  _Col('Crop Sowing Date',     130),
+  _Col('Crop Status',          110),
+  _Col('Crop Class Name',      120),
+  _Col('Source of Irrigation', 150),
+  _Col('Remarks',              160),
+];
+
+// ── Data model passed in from parent ─────────────────────────────────────────
+class ReviewedImageRow {
+  /// URL / asset path for the thumbnail.  Pass empty string for placeholder.
+  final String imageUrl;
+  final String landUsage;
+  final String cropAreaType;
+  final String area;
+  final String cropSowingDate;
+  final String cropStatus;
+  final String cropClassName;
+  final String irrigationSource;
+  final String remarks;
+
+  const ReviewedImageRow({
+    required this.imageUrl,
+    required this.landUsage,
+    required this.cropAreaType,
+    required this.area,
+    required this.cropSowingDate,
+    required this.cropStatus,
+    required this.cropClassName,
+    required this.irrigationSource,
+    required this.remarks,
+  });
+}
+
+// ── Public widget ─────────────────────────────────────────────────────────────
 class ReviewedImagesTable extends StatelessWidget {
-  final List<SurveyImage> images;
-  final void Function(int index)? onImageTap;
-  final void Function(int index)? onViewTap;
+  /// One row per reviewed-image entry.
+  final List<ReviewedImageRow> rows;
+
+  /// Called when the user taps the thumbnail.
+  final void Function(int index) onImageTap;
+
+  /// Called when the user taps the view (eye) icon in the photo cell.
+  final void Function(int index) onViewTap;
 
   const ReviewedImagesTable({
     super.key,
-    required this.images,
-    this.onImageTap,
-    this.onViewTap,
+    required this.rows,
+    required this.onImageTap,
+    required this.onViewTap,
   });
 
+  // ── helpers ─────────────────────────────────────────────────────────────────
+  Color? _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'standing':  return AppColors.approved;
+      case 'harvested': return AppColors.primaryDark;
+      case 'damaged':   return AppColors.rejected;
+      case 'not sown':  return AppColors.textMuted;
+      default:          return null;
+    }
+  }
+
+  static const List<Color> _thumbBg = [
+    Color(0xFFD6E8D0),
+    Color(0xFFD0DFF5),
+    Color(0xFFF5E6D0),
+    Color(0xFFE8D0F5),
+    Color(0xFFD0F0F5),
+  ];
+
+  // ── build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Table(
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      border: TableBorder(
+        horizontalInside: BorderSide(color: AppColors.divider, width: 1),
+        bottom:           BorderSide(color: AppColors.divider, width: 1),
+        top:              BorderSide(color: AppColors.divider, width: 1),
+        left:             BorderSide(color: AppColors.divider, width: 1),
+        right:            BorderSide(color: AppColors.divider, width: 1),
+        verticalInside:   BorderSide(color: AppColors.divider, width: 1),
+      ),
       children: [
-        _buildHeader(context),
-        ...images.asMap().entries.map(
-              (e) => _buildRow(context, e.value, e.key,
-                  isLast: e.key == images.length - 1),
-            ),
+        _headerRow(context),
+        ...List.generate(rows.length, (i) => _dataRow(context, i)),
       ],
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(bottom: context.getHeight(8)),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: _colPhoto,
-            child: Text('PHOTOS', style: _headerStyle(context)),
+  // ── Header ───────────────────────────────────────────────────────────────────
+  TableRow _headerRow(BuildContext context) {
+    return TableRow(
+      decoration: const BoxDecoration(color: AppColors.background),
+      children: _columns.map((col) {
+        return _cell(
+          width: col.width,
+          child: Text(
+            col.header,
+            style: TextStyle(
+              fontSize:   context.getFontSize(AppDimens.fontXS),
+              fontWeight: FontWeight.w700,
+              color:      AppColors.textSecondary,
+              letterSpacing: 0.2,
+            ),
           ),
-          SizedBox(
-            width: context.getWidth(50),
-          ),
-          SizedBox(
-            width: _colLand,
-            child: Text('LAND USAGE', style: _headerStyle(context)),
-          ),
-          SizedBox(
-            width: _colCrop,
-            child: Text('CROP /\nAREA TYPE', style: _headerStyle(context)),
-          ),
-          SizedBox(
-            width: _colArea,
-            child: Text('AREA',
-                style: _headerStyle(context), textAlign: TextAlign.right),
-          ),
-          SizedBox(
-            width: _colArea,
-            child: Text('CROP SOWING DATE',
-                style: _headerStyle(context),),
-          ),
-          SizedBox(
-            width: _colArea,
-            child: Text('CROP STATUS',
-                style: _headerStyle(context), ),
-          ),
-          SizedBox(
-            width: _colArea,
-            child: Text('CROP CLASS NAME',
-                style: _headerStyle(context), ),
-          ),
-          SizedBox(
-            width: _colArea,
-            child: Text('SOURCE OF IRRIGATION',
-                style: _headerStyle(context), ),
-          ),
-          SizedBox(
-            width: _colArea,
-            child: Text('REMARKS',
-                style: _headerStyle(context), ),
-          ),
-          if (onViewTap != null) SizedBox(width: _colView),
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildRow(
-    BuildContext context,
-    SurveyImage img,
-    int index, {
-    required bool isLast,
-  }) {
-    final canTap  = onImageTap != null;
-    final canView = onViewTap  != null;
+  // ── Data row ─────────────────────────────────────────────────────────────────
+  TableRow _dataRow(BuildContext context, int i) {
+    final row = rows[i];
+    final statusColor = _statusColor(row.cropStatus);
 
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: context.getHeight(10)),
+    return TableRow(
       decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : const Border(
-                bottom: BorderSide(color: AppColors.divider, width: 0.5)),
+        color: i.isEven ? AppColors.surface : AppColors.background,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // ── Thumbnail ───────────────────────────────────────────────
-          SizedBox(
-            width: _colPhoto,
-            child: GestureDetector(
-              onTap: canTap ? () => onImageTap!(index) : null,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(context.getWidth(6)),
-                    child: SizedBox(
-                      width: context.getWidth(40),
-                      height: context.getHeight(30),
-                      child: CustomPaint(
-                        painter: _MiniFieldPainter(Color(img.colorHex)),
-                      ),
-                    ),
-                  ),
-                  if (canTap)
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(context.getWidth(6)),
-                        child: Container(
-                          color: Colors.black.withValues(alpha: 0.22),
-                          child: Icon(Icons.zoom_in_rounded,
-                              color: Colors.white,
-                              size: context.getWidth(14)),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── View icon ───────────────────────────────────────────────
-          if (canView)
-            SizedBox(
-              width: _colView,
-              child: GestureDetector(
-                onTap: () => onViewTap!(index),
-                child: Center(
+      children: [
+        // ── Photo cell (thumbnail + view icon) ──────────────────────────────
+        _cell(
+          width: _columns[0].width,
+          vPad: 8,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Thumbnail
+              GestureDetector(
+                onTap: () => onImageTap(i),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
                   child: Container(
-                    padding: EdgeInsets.all(context.getWidth(4)),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius:
-                      BorderRadius.circular(context.getWidth(6)),
-                      border: Border.all(
-                          color:
-                          AppColors.primary.withValues(alpha: 0.3)),
+                    width:  context.getWidth(48),
+                    height: context.getWidth(48),
+                    color:  _thumbBg[i % _thumbBg.length],
+                    child: const Icon(
+                      Icons.image_outlined,
+                      size: 22,
+                      color: AppColors.textMuted,
                     ),
-                    child: Icon(Icons.info_outline_rounded,
-                        size: context.getWidth(14),
-                        color: AppColors.primaryDark),
                   ),
                 ),
               ),
-            ),
-          
-          
-          SizedBox(
-            width: context.getWidth(15),
-          ),
-
-          // ── Land Usage ──────────────────────────────────────────────
-          SizedBox(
-            width: _colLand,
-            child: Text(
-              img.landUsage,
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-
-          // ── Crop / Area Type ────────────────────────────────────────
-          SizedBox(
-            width: _colCrop,
-            child: Text(
-              img.cropAreaType,
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-
-          // ── Area ────────────────────────────────────────────────────
-          SizedBox(
-            width: _colArea,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  img.area.toStringAsFixed(3),
-                  style: TextStyle(
-                    fontSize: context.getFontSize(AppDimens.fontS),
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
+              SizedBox(width: context.getWidth(6)),
+              // View icon
+              GestureDetector(
+                onTap: () => onViewTap(i),
+                child: Container(
+                  width:  context.getWidth(28),
+                  height: context.getWidth(28),
+                  decoration: BoxDecoration(
+                    color:        AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.visibility_outlined,
+                    size:  context.getWidth(14),
+                    color: AppColors.primaryDark,
                   ),
                 ),
-                Text(
-                  img.areaUnit,
-                  style: TextStyle(
-                    fontSize: context.getFontSize(AppDimens.fontXS),
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-// ── Crop Sowing Date ───────────────────────────────────────
-          SizedBox(
-            width: _colArea,
-            child: Text(
-              img.cropSowingDate ?? '-',
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
               ),
-            ),
+            ],
           ),
+        ),
 
-// ── Crop Status ────────────────────────────────────────────
-          SizedBox(
-            width: _colArea,
-            child: Text(
-              img.cropStatus ?? '-',
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+        // ── Text cells ───────────────────────────────────────────────────────
+        _textCell(context, row.landUsage),
+        _textCell(context, row.cropAreaType),
+        _textCell(context, row.area),
+        _textCell(context, row.cropSowingDate),
 
-// ── Crop Class Name ───────────────────────────────────────
-          SizedBox(
-            width: _colArea,
-            child: Text(
-              img.cropClassName ?? '-',
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
+        // Crop Status — plain coloured text, same style as other cells
+        _cell(
+          width: _columns[5].width,
+          child: Text(
+            row.cropStatus,
+            style: TextStyle(
+              fontSize:   context.getFontSize(AppDimens.fontS),
+              fontWeight: FontWeight.w600,
+              color:      statusColor ?? AppColors.textPrimary,
             ),
           ),
+        ),
 
-// ── Irrigation Source ─────────────────────────────────────
-          SizedBox(
-            width: _colArea,
-            child: Text(
-              img.irrigationSource ?? '-',
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+        _textCell(context, row.cropClassName),
+        _textCell(context, row.irrigationSource),
+        _textCell(context, row.remarks),
+      ],
+    );
+  }
 
-// ── Remarks ───────────────────────────────────────────────
-          SizedBox(
-            width: _colArea,
-            child: Text(
-              img.remarks ?? '-',
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  Widget _cell({
+    required double width,
+    required Widget child,
+    double vPad = 10,
+  }) {
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: vPad),
+        child: child,
       ),
     );
   }
 
-  TextStyle _headerStyle(BuildContext context) => TextStyle(
-        fontSize: context.getFontSize(AppDimens.fontXS),
-        fontWeight: FontWeight.w700,
-        color: AppColors.textSecondary,
-        letterSpacing: 0.4,
-      );
-}
-
-class _MiniFieldPainter extends CustomPainter {
-  final Color base;
-  _MiniFieldPainter(this.base);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height),
-        Paint()..color = base);
-    final p = Paint()
-      ..color = Colors.black.withValues(alpha: 0.18)
-      ..strokeWidth = 0.8
-      ..style = PaintingStyle.stroke;
-    for (double i = -size.height; i < size.width; i += 5) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), p);
-    }
+  Widget _textCell(BuildContext context, String value) {
+    return _cell(
+      width: 0, // will be set by column width via IntrinsicColumnWidth
+      child: Text(
+        value,
+        style: TextStyle(
+          fontSize:   context.getFontSize(AppDimens.fontS),
+          color:      AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter _) => false;
 }

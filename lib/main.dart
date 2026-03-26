@@ -1,6 +1,7 @@
 import 'package:dcs_supervisor/core/app_colors.dart';
 import 'package:dcs_supervisor/core/app_state.dart';
-import 'package:dcs_supervisor/core/objectbox.dart';
+import 'package:dcs_supervisor/core/filter_preferences_storage.dart';
+import 'package:dcs_supervisor/screens/login_screen.dart';
 import 'package:dcs_supervisor/screens/survey_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,7 +14,7 @@ Future<void> main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  await ObjectBox.init();
+  await FilterPreferencesStorage.init();
   runApp(const MyApp());
 }
 
@@ -36,11 +37,9 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      // Show login first; SurveyListScreen if already logged in (won't happen
-      // in this session since AppState is in-memory, but kept for extensibility)
       home: AppState.instance.isLoggedIn
           ? const SurveyListScreen()
-          : const SurveyListScreen(),
+          : const LoginScreen(),
     );
   }
 }

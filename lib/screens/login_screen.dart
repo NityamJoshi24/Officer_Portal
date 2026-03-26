@@ -1,3 +1,4 @@
+import 'package:dcs_supervisor/screens/state_selector_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
@@ -290,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           SizedBox(height: context.getHeight(36)),
 
-          _buildStateSelector(),
+          _buildStateSelectorButton(),
           SizedBox(height: context.getHeight(24)),
 
           // Email
@@ -373,7 +374,63 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── OTP form ───────────────────────────────────────────────────────────
+  // ── State Selector form ───────────────────────────────────────────────────────────
+
+  Widget _buildStateSelectorButton() {
+    return GestureDetector(
+      onTap: () async {
+        final selected = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const StateSelectionScreen(),
+          ),
+        );
+
+        if (selected != null) {
+          setState(() {
+            _selectedState = selected;
+          });
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(context.getWidth(14)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(
+              context.getWidth(AppDimens.radiusM)),
+          border: Border.all(
+            color: _selectedState == null
+                ? AppColors.chipBorder
+                : AppColors.primary,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.location_on_outlined,
+                color: AppColors.textMuted),
+            SizedBox(width: context.getWidth(10)),
+            Expanded(
+              child: Text(
+                _selectedState ?? 'Select State',
+                style: TextStyle(
+                  fontSize: context.getFontSize(AppDimens.fontM),
+                  color: _selectedState == null
+                      ? AppColors.textMuted
+                      : AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: context.getWidth(14),
+                color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStateSelector() {
     final filteredStates = _filteredStates;
     final hasSearchQuery = _stateSearchCtrl.text.trim().isNotEmpty;

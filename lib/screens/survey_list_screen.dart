@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_state.dart';
-import '../core/objectbox.dart';
+import '../core/filter_preferences_storage.dart';
 import '../data/survey_dummy_data.dart';
 import '../models/filter_preferences_entity.dart';
 import '../models/survey_model.dart';
@@ -117,7 +117,7 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
   }
 
   void _loadPersistedFilters() {
-    final savedFilters = ObjectBox.instance.getFilterPreferences();
+    final savedFilters = FilterPreferencesStorage.instance.getFilterPreferences();
     if (savedFilters == null) {
       return;
     }
@@ -127,19 +127,21 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     });
   }
 
-  void _updateFilters(_ActiveFilters nextFilters) {
+  Future<void> _updateFilters(_ActiveFilters nextFilters) async {
     setState(() {
       _filters = nextFilters;
     });
-    _persistFilters();
+    await _persistFilters();
   }
 
-  void _persistFilters() {
+  Future<void> _persistFilters() async {
     if (!_filters.hasAny) {
-      ObjectBox.instance.clearFilterPreferences();
+      await FilterPreferencesStorage.instance.clearFilterPreferences();
       return;
     }
-    ObjectBox.instance.saveFilterPreferences(_entityFromFilters(_filters));
+    await FilterPreferencesStorage.instance.saveFilterPreferences(
+      _entityFromFilters(_filters),
+    );
   }
 
   _ActiveFilters _filtersFromEntity(FilterPreferencesEntity entity) {
@@ -1928,9 +1930,10 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                     width: double.infinity,
                     height: context.getHeight(48),
                     child: ElevatedButton(
-                      onPressed: () {
-                        _updateFilters(draft);
-                        Navigator.pop(ctx);
+                      onPressed: () async {
+                        final navigator = Navigator.of(ctx);
+                        await _updateFilters(draft);
+                        navigator.pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,

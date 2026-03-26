@@ -365,7 +365,6 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
           children: [
             _buildAppBar(),
             _buildSequenceNav(),
-            _buildWarningBanner(),
             _buildTabBar(),
             Expanded(
               child: TabBarView(
@@ -523,41 +522,41 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
     );
   }
 
-  Widget _buildWarningBanner() {
-    return Container(
-      width: double.infinity,
-      color: AppColors.pendingBg,
-      padding: EdgeInsets.symmetric(
-          horizontal: context.getWidth(14), vertical: context.getHeight(8)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline_rounded,
-              size: context.getWidth(14), color: AppColors.pending),
-          SizedBox(width: context.getWidth(6)),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                    fontSize: context.getFontSize(AppDimens.fontXS + 1),
-                    color: const Color(0xFFB45309),
-                    fontWeight: FontWeight.w500),
-                children: const [
-                  TextSpan(
-                      text: 'Important Reminder: ',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                  TextSpan(
-                      text:
-                      'Before giving final approval or rejection of a survey, '
-                          'please review all the surveyed images carefully.'),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildWarningBanner() {
+  //   return Container(
+  //     width: double.infinity,
+  //     color: AppColors.pendingBg,
+  //     padding: EdgeInsets.symmetric(
+  //         horizontal: context.getWidth(14), vertical: context.getHeight(8)),
+  //     child: Row(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Icon(Icons.info_outline_rounded,
+  //             size: context.getWidth(14), color: AppColors.pending),
+  //         SizedBox(width: context.getWidth(6)),
+  //         // Expanded(
+  //         //   child: RichText(
+  //         //     text: TextSpan(
+  //         //       style: TextStyle(
+  //         //           fontSize: context.getFontSize(AppDimens.fontXS + 1),
+  //         //           color: const Color(0xFFB45309),
+  //         //           fontWeight: FontWeight.w500),
+  //         //       children: const [
+  //         //         TextSpan(
+  //         //             text: 'Important Reminder: ',
+  //         //             style: TextStyle(fontWeight: FontWeight.w700)),
+  //         //         TextSpan(
+  //         //             text:
+  //         //             'Before giving final approval or rejection of a survey, '
+  //         //                 'please review all the surveyed images carefully.'),
+  //         //       ],
+  //         //     ),
+  //         //   ),
+  //         // ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildTabBar() {
     return Container(
@@ -690,70 +689,110 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
     );
   }
 
-  // Change: horizontally scrollable reviewed images card
-  // View icon is positioned beside each image thumbnail (handled in ReviewedImagesTable via onViewTap)
-  Widget _buildReviewedImagesCard(SurveyModel s) {
-    final totalCount = s.reviewedImages.length;
+  // ─────────────────────────────────────────────────────────────────────────────
+// PASTE THIS HELPER inside _SurveyDetailScreenState
+// (replaces / adds beside _buildReviewedImagesCard)
+// ─────────────────────────────────────────────────────────────────────────────
 
-    return _card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('Total Reviewed Images',
-                  style: TextStyle(
-                      fontSize: context.getFontSize(AppDimens.fontM),
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary)),
-              SizedBox(width: context.getWidth(6)),
-              Container(
-                padding: EdgeInsets.symmetric(
-                    horizontal: context.getWidth(7),
-                    vertical: context.getHeight(2)),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(
-                      context.getWidth(AppDimens.radiusFull)),
-                ),
-                child: Text(
-                  '$totalCount/$totalCount',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: context.getFontSize(AppDimens.fontXS),
-                    fontWeight: FontWeight.w700,
-                  ),
+/// Converts the survey's reviewedImages list into ReviewedImageRow objects
+/// so the table has real field data per row.
+List<ReviewedImageRow> _buildTableRows(SurveyModel s) {
+  return List.generate(s.reviewedImages.length, (i) {
+    final f = _dummyItemFields[i % _dummyItemFields.length];
+    final photo = _dummyPhotos[i % _dummyPhotos.length];
+    return ReviewedImageRow(
+      imageUrl:         photo.url,
+      landUsage:        f.landUsage,
+      cropAreaType:     f.cropAreaType,
+      area:             f.area,
+      cropSowingDate:   f.cropSowingDate,
+      cropStatus:       f.cropStatus,
+      cropClassName:    f.cropClassName,
+      irrigationSource: f.irrigationSource,
+      remarks:          f.remarks,
+    );
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REPLACE the existing _buildReviewedImagesCard with this version
+// ─────────────────────────────────────────────────────────────────────────────
+
+Widget _buildReviewedImagesCard(SurveyModel s) {
+  final totalCount = s.reviewedImages.length;
+  final rows       = _buildTableRows(s);
+
+  return _card(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Header row ──────────────────────────────────────────────────────
+        Row(
+          children: [
+            Text(
+              'Total Reviewed Images',
+              style: TextStyle(
+                fontSize:   context.getFontSize(AppDimens.fontM),
+                fontWeight: FontWeight.w700,
+                color:      AppColors.textPrimary,
+              ),
+            ),
+            SizedBox(width: context.getWidth(6)),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.getWidth(7),
+                vertical:   context.getHeight(2),
+              ),
+              decoration: BoxDecoration(
+                color:        AppColors.primary,
+                borderRadius: BorderRadius.circular(
+                    context.getWidth(AppDimens.radiusFull)),
+              ),
+              child: Text(
+                '$totalCount/$totalCount',
+                style: TextStyle(
+                  color:      Colors.white,
+                  fontSize:   context.getFontSize(AppDimens.fontXS),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(width: context.getWidth(4)),
-              Icon(Icons.info_outline_rounded,
-                  size: context.getWidth(14), color: AppColors.textMuted),
-            ],
-          ),
-          SizedBox(height: context.getHeight(4)),
-          Text(
-            'Tap the view icon beside each image to inspect its details',
-            style: TextStyle(
-              fontSize: context.getFontSize(AppDimens.fontXS),
-              color: AppColors.textMuted,
-              fontStyle: FontStyle.italic,
             ),
+            SizedBox(width: context.getWidth(4)),
+            Icon(Icons.info_outline_rounded,
+                size: context.getWidth(14), color: AppColors.textMuted),
+          ],
+        ),
+
+        SizedBox(height: context.getHeight(4)),
+
+        Text(
+          'Tap the view icon (👁) to inspect image details  •  Tap thumbnail for fullscreen',
+          style: TextStyle(
+            fontSize:   context.getFontSize(AppDimens.fontXS),
+            color:      AppColors.textMuted,
+            fontStyle:  FontStyle.italic,
           ),
-          SizedBox(height: context.getHeight(8)),
-          // Horizontally scrollable table
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+        ),
+
+        SizedBox(height: context.getHeight(12)),
+
+        // ── Horizontally scrollable table ───────────────────────────────────
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ClipRRect(
+            borderRadius:
+                BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
             child: ReviewedImagesTable(
-              images: s.reviewedImages,
-              onImageTap: _openFullscreen,
-              // View icon is rendered beside the image thumbnail inside the table
-              onViewTap: (index) => _openImageDetailViewer(s, index),
+              rows:        rows,
+              onImageTap:  _openFullscreen,
+              onViewTap:   (index) => _openImageDetailViewer(s, index),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   // Single photo, no swipe
   void _openFullscreen(int startIndex) {
@@ -1717,27 +1756,37 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
         horizontal: context.getWidth(14),
         vertical: context.getHeight(12),
       ),
-      child: Row(
+      child:Row(
         children: [
           Icon(icon,
               size: context.getWidth(16), color: AppColors.textMuted),
           SizedBox(width: context.getWidth(10)),
+
           Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: context.getFontSize(AppDimens.fontS),
-              color: valueColor ?? AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: context.getFontSize(AppDimens.fontS),
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(width: context.getWidth(12)), // 👈 spacing fix
+                Flexible(
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: context.getFontSize(AppDimens.fontS),
+                      color: valueColor ?? AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
