@@ -1,15 +1,19 @@
 import 'package:dcs_supervisor/core/app_colors.dart';
 import 'package:dcs_supervisor/core/app_state.dart';
+import 'package:dcs_supervisor/core/objectbox.dart';
 import 'package:dcs_supervisor/screens/survey_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+  await ObjectBox.init();
   runApp(const MyApp());
 }
 

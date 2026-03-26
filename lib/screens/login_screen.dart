@@ -12,6 +12,37 @@ import 'survey_list_screen.dart';
 
 enum _LoginStep { emailPassword, otp }
 
+const List<String> _indianStates = [
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+];
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -25,30 +56,35 @@ class _LoginScreenState extends State<LoginScreen>
 
   // Controllers
   final _emailCtrl = TextEditingController();
-  final _passCtrl  = TextEditingController();
-  final List<TextEditingController> _otpCtrls =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _otpFocus =
-      List.generate(6, (_) => FocusNode());
+  final _passCtrl = TextEditingController();
+  final _stateSearchCtrl = TextEditingController();
+  final List<TextEditingController> _otpCtrls = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
+  final List<FocusNode> _otpFocus = List.generate(6, (_) => FocusNode());
 
   final _formKey = GlobalKey<FormState>();
   bool _obscurePass = true;
-  bool _isLoading   = false;
+  bool _isLoading = false;
   String? _errorMsg;
+  String? _selectedState;
 
   // Demo credentials
-  static const _validEmail    = 'supervisor@portal.com';
+  static const _validEmail = 'supervisor@portal.com';
   static const _validPassword = 'Admin@123';
-  static const _validOtp      = '123456';
+  static const _validOtp = '123456';
 
   late final AnimationController _fadeCtrl;
-  late final Animation<double>    _fadeAnim;
+  late final Animation<double> _fadeAnim;
 
   @override
   void initState() {
     super.initState();
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 350));
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
   }
@@ -57,8 +93,13 @@ class _LoginScreenState extends State<LoginScreen>
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
-    for (final c in _otpCtrls) c.dispose();
-    for (final f in _otpFocus) f.dispose();
+    _stateSearchCtrl.dispose();
+    for (final c in _otpCtrls) {
+      c.dispose();
+    }
+    for (final f in _otpFocus) {
+      f.dispose();
+    }
     _fadeCtrl.dispose();
     super.dispose();
   }
@@ -66,12 +107,18 @@ class _LoginScreenState extends State<LoginScreen>
   // ── Step 1: validate email + password ──────────────────────────────────
   Future<void> _submitCredentials() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() { _isLoading = true; _errorMsg = null; });
+    setState(() {
+      _isLoading = true;
+      _errorMsg = null;
+    });
     await Future.delayed(const Duration(milliseconds: 900));
 
     if (_emailCtrl.text.trim() == _validEmail &&
         _passCtrl.text == _validPassword) {
-      setState(() { _step = _LoginStep.otp; _isLoading = false; });
+      setState(() {
+        _step = _LoginStep.otp;
+        _isLoading = false;
+      });
       _fadeCtrl
         ..reset()
         ..forward();
@@ -82,7 +129,8 @@ class _LoginScreenState extends State<LoginScreen>
       );
     } else {
       setState(() {
-        _errorMsg = 'Invalid email or password. Try supervisor@portal.com / Admin@123';
+        _errorMsg =
+            'Invalid email or password. Try supervisor@portal.com / Admin@123';
         _isLoading = false;
       });
     }
@@ -95,17 +143,23 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() => _errorMsg = 'Please enter all 6 digits.');
       return;
     }
-    setState(() { _isLoading = true; _errorMsg = null; });
+    setState(() {
+      _isLoading = true;
+      _errorMsg = null;
+    });
     await Future.delayed(const Duration(milliseconds: 900));
 
     if (otp == _validOtp) {
-      AppState.instance.login(_emailCtrl.text.trim());
-      if (!mounted) return;
+      AppState.instance.login(_emailCtrl.text.trim(), state: _selectedState!);
+      if (!mounted) {
+        return;
+      }
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const SurveyListScreen(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const SurveyListScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
           transitionDuration: const Duration(milliseconds: 400),
         ),
       );
@@ -113,7 +167,9 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() {
         _errorMsg = 'Incorrect OTP. Hint: use 123456';
         _isLoading = false;
-        for (final c in _otpCtrls) c.clear();
+        for (final c in _otpCtrls) {
+          c.clear();
+        }
       });
       _otpFocus[0].requestFocus();
     }
@@ -123,11 +179,21 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() {
       _step = _LoginStep.emailPassword;
       _errorMsg = null;
-      for (final c in _otpCtrls) c.clear();
+      for (final c in _otpCtrls) {
+        c.clear();
+      }
     });
     _fadeCtrl
       ..reset()
       ..forward();
+  }
+
+  List<String> get _filteredStates {
+    final query = _stateSearchCtrl.text.trim().toLowerCase();
+    if (query.isEmpty) return _indianStates;
+    return _indianStates
+        .where((state) => state.toLowerCase().contains(query))
+        .toList();
   }
 
   // ── BUILD ──────────────────────────────────────────────────────────────
@@ -166,7 +232,9 @@ class _LoginScreenState extends State<LoginScreen>
             color: AppColors.primaryLight,
             borderRadius: BorderRadius.circular(context.getWidth(14)),
             border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.25), width: 1.5),
+              color: AppColors.primary.withValues(alpha: 0.25),
+              width: 1.5,
+            ),
           ),
           child: Icon(
             Icons.dashboard_customize_rounded,
@@ -209,6 +277,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   // ── Credentials form ───────────────────────────────────────────────────
   Widget _buildCredentialsForm() {
+    final isStateSelected = _selectedState != null;
+
     return Form(
       key: _formKey,
       child: Column(
@@ -220,6 +290,9 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           SizedBox(height: context.getHeight(36)),
 
+          _buildStateSelector(),
+          SizedBox(height: context.getHeight(24)),
+
           // Email
           _fieldLabel('Email address'),
           SizedBox(height: context.getHeight(6)),
@@ -228,6 +301,7 @@ class _LoginScreenState extends State<LoginScreen>
             hint: 'supervisor@portal.com',
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
+            enabled: isStateSelected,
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Email is required';
               if (!v.contains('@')) return 'Enter a valid email';
@@ -244,6 +318,7 @@ class _LoginScreenState extends State<LoginScreen>
             hint: '••••••••',
             icon: Icons.lock_outline_rounded,
             obscure: _obscurePass,
+            enabled: isStateSelected,
             suffixIcon: GestureDetector(
               onTap: () => setState(() => _obscurePass = !_obscurePass),
               child: Icon(
@@ -266,10 +341,14 @@ class _LoginScreenState extends State<LoginScreen>
           Align(
             alignment: Alignment.centerRight,
             child: Text(
-              'Forgot password?',
+              isStateSelected
+                  ? 'Forgot password?'
+                  : 'Select a state first to continue',
               style: TextStyle(
                 fontSize: context.getFontSize(AppDimens.fontS),
-                color: AppColors.primaryDark,
+                color: isStateSelected
+                    ? AppColors.primaryDark
+                    : AppColors.textMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -282,29 +361,210 @@ class _LoginScreenState extends State<LoginScreen>
           // Submit button
           _buildPrimaryButton(
             label: 'Continue',
-            onTap: _isLoading ? null : _submitCredentials,
+            onTap: _isLoading || !isStateSelected ? null : _submitCredentials,
             loading: _isLoading,
           ),
           SizedBox(height: context.getHeight(32)),
 
           // Demo credentials hint
-          _buildDemoHint(
-            'Demo credentials: supervisor@portal.com / Admin@123',
-          ),
+          _buildDemoHint('Demo credentials: supervisor@portal.com / Admin@123'),
         ],
       ),
     );
   }
 
   // ── OTP form ───────────────────────────────────────────────────────────
+  Widget _buildStateSelector() {
+    final filteredStates = _filteredStates;
+    final hasSearchQuery = _stateSearchCtrl.text.trim().isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(context.getWidth(16)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(
+          context.getWidth(AppDimens.radiusM),
+        ),
+        border: Border.all(
+          color: _selectedState == null
+              ? AppColors.chipBorder
+              : AppColors.primary.withValues(alpha: 0.35),
+          width: 1.4,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Select State',
+                      style: TextStyle(
+                        fontSize: context.getFontSize(AppDimens.fontL),
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: context.getHeight(4)),
+                    Text(
+                      _selectedState == null
+                          ? 'Choose a state of India before entering login details.'
+                          : 'Selected state: $_selectedState',
+                      style: TextStyle(
+                        fontSize: context.getFontSize(AppDimens.fontS),
+                        color: _selectedState == null
+                            ? AppColors.textSecondary
+                            : AppColors.primaryDark,
+                        fontWeight: _selectedState == null
+                            ? FontWeight.w500
+                            : FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_selectedState != null)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.getWidth(10),
+                    vertical: context.getHeight(6),
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(context.getWidth(999)),
+                  ),
+                  child: Text(
+                    'Ready',
+                    style: TextStyle(
+                      fontSize: context.getFontSize(AppDimens.fontXS + 1),
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: context.getHeight(14)),
+          _buildTextField(
+            controller: _stateSearchCtrl,
+            hint: 'Search state',
+            icon: Icons.search_rounded,
+            onChanged: (_) => setState(() {}),
+          ),
+          SizedBox(height: context.getHeight(12)),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: hasSearchQuery
+                ? filteredStates.isEmpty
+                    ? Padding(
+                        key: const ValueKey('state-empty'),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.getWidth(2),
+                          vertical: context.getHeight(4),
+                        ),
+                        child: Text(
+                          'No matching state found.',
+                          style: TextStyle(
+                            fontSize: context.getFontSize(AppDimens.fontS),
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )
+                    : Wrap(
+                        key: const ValueKey('state-suggestions'),
+                        spacing: context.getWidth(8),
+                        runSpacing: context.getHeight(8),
+                        children: filteredStates.map((state) {
+                          final isSelected = state == _selectedState;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(
+                              context.getWidth(999),
+                            ),
+                            onTap: () {
+                              FocusScope.of(context).unfocus();
+                              setState(() {
+                                _selectedState = state;
+                                _errorMsg = null;
+                                _stateSearchCtrl.text = state;
+                              });
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.getWidth(12),
+                                vertical: context.getHeight(10),
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primaryLight
+                                    : AppColors.background,
+                                borderRadius: BorderRadius.circular(
+                                  context.getWidth(999),
+                                ),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primary.withValues(alpha: 0.4)
+                                      : AppColors.divider,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    state,
+                                    style: TextStyle(
+                                      fontSize: context.getFontSize(
+                                        AppDimens.fontS,
+                                      ),
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? AppColors.primaryDark
+                                          : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  if (isSelected) ...[
+                                    SizedBox(width: context.getWidth(6)),
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      color: AppColors.primary,
+                                      size: context.getWidth(16),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      )
+                : Text(
+                    key: const ValueKey('state-hint'),
+                    'Start typing to search and select a state.',
+                    style: TextStyle(
+                      fontSize: context.getFontSize(AppDimens.fontS),
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildOtpForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildHeader(
           title: 'Verify your\nidentity',
-          subtitle:
-              'A 6-digit OTP has been sent to\n${_emailCtrl.text.trim()}',
+          subtitle: 'A 6-digit OTP has been sent to\n${_emailCtrl.text.trim()}',
         ),
         SizedBox(height: context.getHeight(36)),
 
@@ -334,8 +594,11 @@ class _LoginScreenState extends State<LoginScreen>
               onTap: _goBackToCredentials,
               child: Row(
                 children: [
-                  Icon(Icons.arrow_back_rounded,
-                      size: context.getWidth(14), color: AppColors.textSecondary),
+                  Icon(
+                    Icons.arrow_back_rounded,
+                    size: context.getWidth(14),
+                    color: AppColors.textSecondary,
+                  ),
                   SizedBox(width: context.getWidth(4)),
                   Text(
                     'Change email',
@@ -386,11 +649,18 @@ class _LoginScreenState extends State<LoginScreen>
           fillColor: AppColors.surface,
           contentPadding: EdgeInsets.zero,
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
-            borderSide: const BorderSide(color: AppColors.chipBorder, width: 1.5),
+            borderRadius: BorderRadius.circular(
+              context.getWidth(AppDimens.radiusS),
+            ),
+            borderSide: const BorderSide(
+              color: AppColors.chipBorder,
+              width: 1.5,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+            borderRadius: BorderRadius.circular(
+              context.getWidth(AppDimens.radiusS),
+            ),
             borderSide: const BorderSide(color: AppColors.primary, width: 2),
           ),
         ),
@@ -410,13 +680,13 @@ class _LoginScreenState extends State<LoginScreen>
 
   // ── Shared widgets ─────────────────────────────────────────────────────
   Widget _fieldLabel(String text) => Text(
-        text,
-        style: TextStyle(
-          fontSize: context.getFontSize(AppDimens.fontS),
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-        ),
-      );
+    text,
+    style: TextStyle(
+      fontSize: context.getFontSize(AppDimens.fontS),
+      fontWeight: FontWeight.w700,
+      color: AppColors.textPrimary,
+    ),
+  );
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -424,16 +694,20 @@ class _LoginScreenState extends State<LoginScreen>
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool obscure = false,
+    bool enabled = true,
     Widget? suffixIcon,
+    ValueChanged<String>? onChanged,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboardType,
+      enabled: enabled,
+      onChanged: onChanged,
       style: TextStyle(
         fontSize: context.getFontSize(AppDimens.fontM),
-        color: AppColors.textPrimary,
+        color: enabled ? AppColors.textPrimary : AppColors.textMuted,
         fontWeight: FontWeight.w500,
       ),
       validator: validator,
@@ -444,8 +718,15 @@ class _LoginScreenState extends State<LoginScreen>
           fontSize: context.getFontSize(AppDimens.fontM),
         ),
         prefixIcon: Padding(
-          padding: EdgeInsets.only(left: context.getWidth(12), right: context.getWidth(8)),
-          child: Icon(icon, color: AppColors.textMuted, size: context.getWidth(AppDimens.iconM)),
+          padding: EdgeInsets.only(
+            left: context.getWidth(12),
+            right: context.getWidth(8),
+          ),
+          child: Icon(
+            icon,
+            color: AppColors.textMuted,
+            size: context.getWidth(AppDimens.iconM),
+          ),
         ),
         prefixIconConstraints: const BoxConstraints(),
         suffixIcon: suffixIcon != null
@@ -456,25 +737,35 @@ class _LoginScreenState extends State<LoginScreen>
             : null,
         suffixIconConstraints: const BoxConstraints(),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: enabled
+            ? AppColors.surface
+            : AppColors.surface.withValues(alpha: 0.55),
         contentPadding: EdgeInsets.symmetric(
           horizontal: context.getWidth(14),
           vertical: context.getHeight(14),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+          borderRadius: BorderRadius.circular(
+            context.getWidth(AppDimens.radiusS),
+          ),
           borderSide: const BorderSide(color: AppColors.chipBorder, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+          borderRadius: BorderRadius.circular(
+            context.getWidth(AppDimens.radiusS),
+          ),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+          borderRadius: BorderRadius.circular(
+            context.getWidth(AppDimens.radiusS),
+          ),
           borderSide: const BorderSide(color: AppColors.rejected, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+          borderRadius: BorderRadius.circular(
+            context.getWidth(AppDimens.radiusS),
+          ),
           borderSide: const BorderSide(color: AppColors.rejected, width: 2),
         ),
         errorStyle: TextStyle(
@@ -500,7 +791,9 @@ class _LoginScreenState extends State<LoginScreen>
           disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+            borderRadius: BorderRadius.circular(
+              context.getWidth(AppDimens.radiusS),
+            ),
           ),
         ),
         child: loading
@@ -533,13 +826,18 @@ class _LoginScreenState extends State<LoginScreen>
       ),
       decoration: BoxDecoration(
         color: AppColors.rejectedBg,
-        borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+        borderRadius: BorderRadius.circular(
+          context.getWidth(AppDimens.radiusS),
+        ),
         border: Border.all(color: AppColors.rejected.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline_rounded,
-              size: context.getWidth(16), color: AppColors.rejected),
+          Icon(
+            Icons.error_outline_rounded,
+            size: context.getWidth(16),
+            color: AppColors.rejected,
+          ),
           SizedBox(width: context.getWidth(8)),
           Expanded(
             child: Text(
@@ -565,13 +863,18 @@ class _LoginScreenState extends State<LoginScreen>
       ),
       decoration: BoxDecoration(
         color: AppColors.primaryTint,
-        borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
+        borderRadius: BorderRadius.circular(
+          context.getWidth(AppDimens.radiusS),
+        ),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
-          Icon(Icons.lightbulb_outline_rounded,
-              size: context.getWidth(14), color: AppColors.primaryDark),
+          Icon(
+            Icons.lightbulb_outline_rounded,
+            size: context.getWidth(14),
+            color: AppColors.primaryDark,
+          ),
           SizedBox(width: context.getWidth(8)),
           Expanded(
             child: Text(

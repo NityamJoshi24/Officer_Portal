@@ -173,25 +173,24 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
     _idx = widget.initialIndex;
     _tabController = TabController(length: 4, vsync: this);
     _initPhotosForSurvey();
-    _scrollController.addListener(_onScroll);
   }
 
-  // Change: show loader briefly when scrolled to bottom
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final max = _scrollController.position.maxScrollExtent;
-    final cur = _scrollController.offset;
-    if (cur >= max - 1 && !_hasScrolledToBottom) {
-      setState(() {
-        _hasScrolledToBottom = true;
-        _showBottomLoader = true;
-      });
-      // Auto-hide the loader after 1.2 s
-      Future.delayed(const Duration(milliseconds: 1200), () {
-        if (mounted) setState(() => _showBottomLoader = false);
-      });
-    }
-  }
+  // // Change: show loader briefly when scrolled to bottom
+  // void _onScroll() {
+  //   if (!_scrollController.hasClients) return;
+  //   final max = _scrollController.position.maxScrollExtent;
+  //   final cur = _scrollController.offset;
+  //   if (cur >= max - 1 && !_hasScrolledToBottom) {
+  //     setState(() {
+  //       _hasScrolledToBottom = true;
+  //       _showBottomLoader = true;
+  //     });
+  //     // Auto-hide the loader after 1.2 s
+  //     Future.delayed(const Duration(milliseconds: 1200), () {
+  //       if (mounted) setState(() => _showBottomLoader = false);
+  //     });
+  //   }
+  // }
 
   void _initPhotosForSurvey() {
     final id = _survey.id;
@@ -1461,24 +1460,43 @@ class _ImageDetailViewerState extends State<_ImageDetailViewer> {
                                     return Container(
                                       color: _placeholderColors[
                                       (itemIdx + index) % _placeholderColors.length],
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.image_outlined,
-                                            size: context.getWidth(40),
-                                            color: AppColors.textMuted,
-                                          ),
-                                          SizedBox(height: context.getHeight(8)),
-                                          Text(
-                                            'Photo ${index + 1} of $photoCount',
-                                            style: TextStyle(
-                                              fontSize: context.getFontSize(AppDimens.fontM),
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.textSecondary,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => _FullscreenPhotoViewer(
+                                                photos: [photos[index]],
+                                                initialIndex: 0,
+                                                photoStatuses: [
+                                                  widget.photoStatuses[index]
+                                                ],
+                                                onStatusChanged: (i, status) {
+                                                  widget.onStatusChanged(itemIdx, index, status);
+                                                },
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          );
+                                        },
+                                        behavior: HitTestBehavior.opaque,
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.image_outlined,
+                                              size: context.getWidth(40),
+                                              color: AppColors.textMuted,
+                                            ),
+                                            SizedBox(height: context.getHeight(8)),
+                                            Text(
+                                              'Photo ${index + 1} of $photoCount',
+                                              style: TextStyle(
+                                                fontSize: context.getFontSize(AppDimens.fontM),
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     );
                                   },

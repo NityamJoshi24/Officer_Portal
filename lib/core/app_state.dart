@@ -11,9 +11,9 @@ class LoggedInUser {
 }
 
 class FilterState {
-  String talukaFilter;    // '' means no filter
-  String villageFilter;   // '' means no filter
-  String statusFilter;    // 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
+  String talukaFilter; // '' means no filter
+  String villageFilter; // '' means no filter
+  String statusFilter; // 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
 
   FilterState({
     this.talukaFilter = '',
@@ -38,11 +38,12 @@ class AppState {
   static final AppState instance = AppState._();
 
   LoggedInUser? currentUser;
+  String? selectedState;
   final FilterState filters = FilterState();
 
   bool get isLoggedIn => currentUser != null;
 
-  void login(String email) {
+  void login(String email, {required String state}) {
     // Derive a display name from the email
     final name = email
         .split('@')
@@ -51,10 +52,12 @@ class AppState {
         .map((p) => p.isEmpty ? '' : p[0].toUpperCase() + p.substring(1))
         .join(' ');
     currentUser = LoggedInUser(email: email, name: name);
+    selectedState = state;
   }
 
   void logout() {
     currentUser = null;
+    selectedState = null;
     filters.reset();
   }
 }

@@ -10,6 +10,11 @@ class SurveyImage {
   final double area;
   final String areaUnit;
   final int colorHex;
+  final String? cropSowingDate;
+  final String? cropStatus;
+  final String? cropClassName;
+  final String? irrigationSource;
+  final String? remarks;
 
   const SurveyImage({
     required this.landUsage,
@@ -17,6 +22,11 @@ class SurveyImage {
     required this.area,
     required this.areaUnit,
     required this.colorHex,
+    required this.cropClassName,
+    required this.cropSowingDate,
+    required this.cropStatus,
+    required this.irrigationSource,
+    required this.remarks,
   });
 }
 

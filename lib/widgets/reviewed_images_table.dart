@@ -54,16 +54,41 @@ class ReviewedImagesTable extends StatelessWidget {
           ),
           SizedBox(
             width: _colLand,
-            child: Text('LAND USAGE ↕', style: _headerStyle(context)),
+            child: Text('LAND USAGE', style: _headerStyle(context)),
           ),
           SizedBox(
             width: _colCrop,
-            child: Text('CROP /\nAREA TYPE ↕', style: _headerStyle(context)),
+            child: Text('CROP /\nAREA TYPE', style: _headerStyle(context)),
           ),
           SizedBox(
             width: _colArea,
-            child: Text('AREA ↕',
+            child: Text('AREA',
                 style: _headerStyle(context), textAlign: TextAlign.right),
+          ),
+          SizedBox(
+            width: _colArea,
+            child: Text('CROP SOWING DATE',
+                style: _headerStyle(context),),
+          ),
+          SizedBox(
+            width: _colArea,
+            child: Text('CROP STATUS',
+                style: _headerStyle(context), ),
+          ),
+          SizedBox(
+            width: _colArea,
+            child: Text('CROP CLASS NAME',
+                style: _headerStyle(context), ),
+          ),
+          SizedBox(
+            width: _colArea,
+            child: Text('SOURCE OF IRRIGATION',
+                style: _headerStyle(context), ),
+          ),
+          SizedBox(
+            width: _colArea,
+            child: Text('REMARKS',
+                style: _headerStyle(context), ),
           ),
           if (onViewTap != null) SizedBox(width: _colView),
         ],
@@ -206,6 +231,71 @@ class ReviewedImagesTable extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+
+// ── Crop Sowing Date ───────────────────────────────────────
+          SizedBox(
+            width: _colArea,
+            child: Text(
+              img.cropSowingDate ?? '-',
+              style: TextStyle(
+                fontSize: context.getFontSize(AppDimens.fontS),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+
+// ── Crop Status ────────────────────────────────────────────
+          SizedBox(
+            width: _colArea,
+            child: Text(
+              img.cropStatus ?? '-',
+              style: TextStyle(
+                fontSize: context.getFontSize(AppDimens.fontS),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+
+// ── Crop Class Name ───────────────────────────────────────
+          SizedBox(
+            width: _colArea,
+            child: Text(
+              img.cropClassName ?? '-',
+              style: TextStyle(
+                fontSize: context.getFontSize(AppDimens.fontS),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+
+// ── Irrigation Source ─────────────────────────────────────
+          SizedBox(
+            width: _colArea,
+            child: Text(
+              img.irrigationSource ?? '-',
+              style: TextStyle(
+                fontSize: context.getFontSize(AppDimens.fontS),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+
+// ── Remarks ───────────────────────────────────────────────
+          SizedBox(
+            width: _colArea,
+            child: Text(
+              img.remarks ?? '-',
+              style: TextStyle(
+                fontSize: context.getFontSize(AppDimens.fontS),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

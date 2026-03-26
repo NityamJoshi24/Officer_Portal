@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Dummy survey data — 45 records
+// Dummy survey data — 45 records (FIXED)
 // ─────────────────────────────────────────────────────────────────────────────
 import '../models/survey_model.dart';
 
@@ -21,16 +21,22 @@ final List<SurveyModel> dummySurveys = [
     latitude: 27.200005,
     longitude: 77.91705,
     mapCoordinateLabel: '233/2/124573/0233000212',
-    reviewedImages: const [
+    reviewedImages: [
       SurveyImage(
         landUsage: 'NA Area (Non-agricultural)',
         cropAreaType: 'अचानक',
         area: 0.017,
         areaUnit: 'Hectare',
         colorHex: 0xFF8BC34A,
+        cropSowingDate: '-',
+        cropStatus: 'Not Sown',
+        cropClassName: '-',
+        irrigationSource: '-',
+        remarks: 'No crop data',
       ),
     ],
   ),
+
   SurveyModel(
     id: '#941',
     sequenceNumber: 2,
@@ -48,13 +54,18 @@ final List<SurveyModel> dummySurveys = [
     latitude: 18.5360,
     longitude: 73.6820,
     mapCoordinateLabel: '101/A/2026/9876543210222',
-    reviewedImages: const [
+    reviewedImages: [
       SurveyImage(
         landUsage: 'Agricultural Land',
         cropAreaType: 'Wheat',
         area: 0.495,
         areaUnit: 'Hectare',
         colorHex: 0xFF4CAF50,
+        cropSowingDate: '10 Jan, 2026',
+        cropStatus: 'Standing',
+        cropClassName: 'Rabi',
+        irrigationSource: 'Canal',
+        remarks: 'Healthy crop',
       ),
       SurveyImage(
         landUsage: 'NA Area (Non-agricultural)',
@@ -62,139 +73,55 @@ final List<SurveyModel> dummySurveys = [
         area: 0.017,
         areaUnit: 'Hectare',
         colorHex: 0xFF9E9E9E,
+        cropSowingDate: '-',
+        cropStatus: 'Not Sown',
+        cropClassName: '-',
+        irrigationSource: '-',
+        remarks: 'No crop present',
       ),
     ],
   ),
-  SurveyModel(
-    id: '#1052',
-    sequenceNumber: 3,
-    totalSequence: 45,
-    ownerName: 'Amit Shinde',
-    taluka: 'Khed',
-    village: 'Chakan',
-    surveyNo: '312/C',
-    farmlandPlotId: 'MH312984756321',
-    farmerTotalArea: 0.089,
-    surveyorName: 'KAVITA MEENA',
-    farmAllocation: DateTime(2026, 1, 4, 10, 0),
-    surveyDate: DateTime(2026, 1, 10, 9, 30),
-    submissionDate: DateTime(2026, 1, 10, 16, 0),
-    latitude: 18.7631,
-    longitude: 73.8567,
-    mapCoordinateLabel: '312/C/2026/1122334455667',
-    reviewedImages: const [
-      SurveyImage(
-        landUsage: 'NA Area (Non-agricultural)',
-        cropAreaType: 'अचानक',
-        area: 0.089,
-        areaUnit: 'Hectare',
-        colorHex: 0xFF607D8B,
-      ),
-    ],
-  ),
-  SurveyModel(
-    id: '#1129',
-    sequenceNumber: 4,
-    totalSequence: 45,
-    ownerName: 'Pooja Patil',
-    taluka: 'Haveli',
-    village: 'Loni Kalbhor',
-    surveyNo: '421/D',
-    farmlandPlotId: 'MH421234876543',
-    farmerTotalArea: 1.023,
-    surveyorName: 'RAJESH PATEL',
-    farmAllocation: DateTime(2026, 1, 5, 7, 30),
-    surveyDate: DateTime(2026, 1, 12, 11, 0),
-    submissionDate: DateTime(2026, 1, 13, 8, 45),
-    latitude: 18.4837,
-    longitude: 74.0120,
-    mapCoordinateLabel: '421/D/2026/9988776655443',
-    reviewedImages: const [
-      SurveyImage(
-        landUsage: 'Agricultural Land',
-        cropAreaType: 'Sugarcane',
-        area: 0.968,
-        areaUnit: 'Hectare',
-        colorHex: 0xFF2196F3,
-      ),
-      SurveyImage(
-        landUsage: 'NA Area (Non-agricultural)',
-        cropAreaType: 'अचानक',
-        area: 0.055,
-        areaUnit: 'Hectare',
-        colorHex: 0xFF9C27B0,
-      ),
-    ],
-  ),
-  SurveyModel(
-    id: '#1203',
-    sequenceNumber: 5,
-    totalSequence: 45,
-    ownerName: 'Ramesh Kumar Sharma',
-    taluka: 'Mathura',
-    village: 'Vrindavan',
-    surveyNo: '501/E',
-    farmlandPlotId: 'UP501093451234',
-    farmerTotalArea: 0.245,
-    surveyorName: 'AJAY KUMAR',
-    farmAllocation: DateTime(2026, 1, 6, 9, 0),
-    surveyDate: DateTime(2026, 1, 14, 11, 20),
-    submissionDate: DateTime(2026, 1, 15, 8, 0),
-    latitude: 27.5736,
-    longitude: 77.6812,
-    mapCoordinateLabel: '501/E/2026/5544332211009',
-    reviewedImages: const [
-      SurveyImage(
-        landUsage: 'Agricultural Land',
-        cropAreaType: 'Rice',
-        area: 0.245,
-        areaUnit: 'Hectare',
-        colorHex: 0xFF4CAF50,
-      ),
-    ],
-  ),
-  SurveyModel(
-    id: '#1287',
-    sequenceNumber: 6,
-    totalSequence: 45,
-    ownerName: 'Sunita Devi Verma',
-    taluka: 'Agra',
-    village: 'Fatehabad',
-    surveyNo: '205/B',
-    farmlandPlotId: 'UP205473413988',
-    farmerTotalArea: 0.378,
-    surveyorName: 'UMA KUMARI',
-    farmAllocation: DateTime(2026, 1, 7, 8, 30),
-    surveyDate: DateTime(2026, 1, 16, 10, 0),
-    submissionDate: DateTime(2026, 1, 17, 9, 45),
-    latitude: 27.1805,
-    longitude: 78.0082,
-    mapCoordinateLabel: '205/B/2026/1029384756102',
-    reviewedImages: const [
-      SurveyImage(
-        landUsage: 'Agricultural Land',
-        cropAreaType: 'Mustard',
-        area: 0.361,
-        areaUnit: 'Hectare',
-        colorHex: 0xFFFFC107,
-      ),
-      SurveyImage(
-        landUsage: 'NA Area (Non-agricultural)',
-        cropAreaType: 'अचानक',
-        area: 0.017,
-        areaUnit: 'Hectare',
-        colorHex: 0xFF9E9E9E,
-      ),
-    ],
-  ),
-  // Surveys 7–45 generated
-  ...List.generate(39, (i) {
-    final idx = i + 7;
-    const talukas = ['Khed', 'Mulshi', 'Haveli', 'Maval', 'Bhor', 'Agra', 'Mathura'];
-    const surveyors = ['UMA KUMARI', 'PRIYA SINGH', 'AJAY KUMAR', 'KAVITA MEENA', 'RAJESH PATEL'];
+
+  // ─────────────────────────────────────────────────────────
+  // AUTO GENERATED (3 → 45)
+  // ─────────────────────────────────────────────────────────
+  ...List.generate(43, (i) {
+    final idx = i + 3;
+
+    const talukas = [
+      'Khed',
+      'Mulshi',
+      'Haveli',
+      'Maval',
+      'Bhor',
+      'Agra',
+      'Mathura'
+    ];
+
+    const surveyors = [
+      'UMA KUMARI',
+      'PRIYA SINGH',
+      'AJAY KUMAR',
+      'KAVITA MEENA',
+      'RAJESH PATEL'
+    ];
+
     const crops = ['Wheat', 'Rice', 'Sugarcane', 'Mustard', 'Cotton'];
-    const colorHexes = [0xFF4CAF50, 0xFF8BC34A, 0xFFFFC107, 0xFF2196F3, 0xFF9C27B0, 0xFF607D8B];
-    final area = double.parse(((idx * 0.073) % 1.9 + 0.05).toStringAsFixed(3));
+
+    const colorHexes = [
+      0xFF4CAF50,
+      0xFF8BC34A,
+      0xFFFFC107,
+      0xFF2196F3,
+      0xFF9C27B0,
+      0xFF607D8B
+    ];
+
+    final area =
+    double.parse(((idx * 0.073) % 1.9 + 0.05).toStringAsFixed(3));
+
+    final isAgri = idx % 2 == 0;
+
     return SurveyModel(
       id: '#${1300 + idx * 17}',
       sequenceNumber: idx,
@@ -203,7 +130,8 @@ final List<SurveyModel> dummySurveys = [
       taluka: talukas[idx % talukas.length],
       village: 'Village ${idx * 3}',
       surveyNo: '${idx * 10 + 1}/${(idx % 5) + 1}',
-      farmlandPlotId: 'MH${(idx * 1000000 + 234567).toString().padLeft(12, '0')}',
+      farmlandPlotId:
+      'MH${(idx * 1000000 + 234567).toString().padLeft(12, '0')}',
       farmerTotalArea: area,
       surveyorName: surveyors[idx % surveyors.length],
       farmAllocation: DateTime(2026, 1, (idx % 27) + 1, 8, 0),
@@ -211,14 +139,39 @@ final List<SurveyModel> dummySurveys = [
       submissionDate: DateTime(2026, 1, (idx % 27) + 3, 11, 0),
       latitude: 18.3 + (idx * 0.018),
       longitude: 73.5 + (idx * 0.014),
-      mapCoordinateLabel: '${idx * 10 + 1}/${(idx % 5) + 1}/2026/${idx * 8765432}',
+      mapCoordinateLabel:
+      '${idx * 10 + 1}/${(idx % 5) + 1}/2026/${idx * 8765432}',
+
       reviewedImages: [
         SurveyImage(
-          landUsage: idx % 2 == 0 ? 'Agricultural Land' : 'NA Area (Non-agricultural)',
-          cropAreaType: idx % 2 == 0 ? crops[idx % crops.length] : 'अचानक',
+          landUsage: isAgri
+              ? 'Agricultural Land'
+              : 'NA Area (Non-agricultural)',
+
+          cropAreaType: isAgri
+              ? crops[idx % crops.length]
+              : 'अचानक',
+
           area: area,
           areaUnit: 'Hectare',
           colorHex: colorHexes[idx % colorHexes.length],
+
+          cropSowingDate:
+          isAgri ? '${(idx % 28) + 1} Jan, 2026' : '-',
+
+          cropStatus: isAgri
+              ? ['Standing', 'Harvested', 'Damaged'][idx % 3]
+              : 'Not Sown',
+
+          cropClassName: isAgri ? 'Rabi' : '-',
+
+          irrigationSource: isAgri
+              ? ['Canal', 'Borewell', 'Drip'][idx % 3]
+              : '-',
+
+          remarks: isAgri
+              ? 'Field condition normal'
+              : 'No crop present',
         ),
       ],
     );
