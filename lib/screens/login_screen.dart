@@ -178,10 +178,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           '[Login] Login completed for ${_mobileCtrl.text.trim()} in state $_selectedState',
         );
         AppToast.success('Login successful');
-        ref.read(authControllerProvider.notifier).login(
-              _mobileCtrl.text.trim(),
-              stateName: _selectedState!,
-            );
+        final user = apiManager.parseUser(data);
+        if (user == null) {
+          AppToast.error('Failed to read user data. Please try again.');
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+        apiManager.api.setAuthToken(user.userToken);
+
+        await ref.read(authControllerProvider.notifier).login(user);
         if (!mounted) {
           return;
         }

@@ -36,7 +36,6 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.3
   flutter_riverpod: ^2.6.1
-  dio: ^5.9.2
   http: ^1.6.0
   fluttertoast: ^9.0.0
 

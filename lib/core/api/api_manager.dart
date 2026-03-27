@@ -1,3 +1,6 @@
+import 'package:flutter/cupertino.dart';
+
+import '../../models/user_model.dart';
 import 'api_response_status.dart';
 import 'api_services.dart';
 
@@ -216,5 +219,31 @@ class ApiManager {
       }
     }
     return const [];
+  }
+
+  UserModel? parseUser(dynamic response) {
+    if (response is! Map<String, dynamic>) return null;
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) return null;
+    try {
+      final user = UserModel.fromJson(data);
+      debugPrint('╔══════════ UserModel Created ══════════');
+      debugPrint('║ userId         : ${user.userId}');
+      debugPrint('║ userName       : ${user.userName}');
+      debugPrint('║ userFullName   : ${user.userFullName}');
+      debugPrint('║ userType       : ${user.userType}');
+      debugPrint('║ roleName       : ${user.roleName}');
+      debugPrint('║ territoryLevel : ${user.territoryLevel}');
+      debugPrint('║ districtName   : ${user.districtName}');
+      debugPrint('║ stateName      : ${user.stateName}');
+      debugPrint('║ department     : ${user.department.departmentName} (${user.department.departmentCode})');
+      debugPrint('║ tokenPresent   : ${user.userToken.isNotEmpty}');
+      debugPrint('╚═══════════════════════════════════════');
+      return user;
+    } catch (e, st) {
+      debugPrint('[ApiManager] Failed to parse UserModel: $e');
+      debugPrint('[ApiManager] StackTrace: $st');
+      return null;
+    }
   }
 }

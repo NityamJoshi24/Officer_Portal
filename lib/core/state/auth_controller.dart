@@ -1,26 +1,21 @@
+import 'package:dcs_supervisor/core/user_preferences_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/user_model.dart';
 import 'auth_state.dart';
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController() : super(const AuthState());
+  AuthController(this._storage) : super(AuthState(currentUser: _storage.getUser()));
 
-  void login(String username, {required String stateName}) {
-    final displayName = username
-        .split('.')
-        .map((part) => part.isEmpty ? '' : part[0].toUpperCase() + part.substring(1))
-        .join(' ');
+  final UserPreferencesStorage _storage;
 
-    state = AuthState(
-      currentUser: LoggedInUser(
-        username: username,
-        name: displayName,
-      ),
-      selectedState: stateName,
-    );
+  Future<void> login(UserModel user) async {
+    await _storage.saveUser(user);
+    state = AuthState(currentUser: user);
   }
 
-  void logout() {
+  Future<void> logout() async {
+    await _storage.clearUser();
     state = const AuthState();
   }
 }

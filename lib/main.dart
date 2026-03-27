@@ -1,6 +1,7 @@
 import 'package:dcs_supervisor/core/commons/app_colors.dart';
 import 'package:dcs_supervisor/core/filter_preferences_storage.dart';
 import 'package:dcs_supervisor/core/providers.dart';
+import 'package:dcs_supervisor/core/user_preferences_storage.dart';
 import 'package:dcs_supervisor/screens/login_screen.dart';
 import 'package:dcs_supervisor/screens/survey_list_screen.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ Future<void> main() async {
     ),
   );
   await FilterPreferencesStorage.init();
+  await UserPreferencesStorage.init();
   runApp(const ProviderScope(child: MyApp()));
 }
 

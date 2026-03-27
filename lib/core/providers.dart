@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api/api_manager.dart';
 import 'filter_preferences_storage.dart';
+import 'user_preferences_storage.dart';
 import 'state/auth_controller.dart';
 import 'state/auth_state.dart';
 import 'state/survey_filters_controller.dart';
@@ -15,12 +16,16 @@ final filterPreferencesStorageProvider = Provider<FilterPreferencesStorage>((ref
   return FilterPreferencesStorage.instance;
 });
 
+final userPreferencesStorageProvider = Provider<UserPreferencesStorage>((ref) {
+  return UserPreferencesStorage.instance;
+});
+
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
-  return AuthController();
+  return AuthController(ref.read(userPreferencesStorageProvider));
 });
 
 final surveyFiltersProvider =
-    StateNotifierProvider<SurveyFiltersController, SurveyFiltersState>((ref) {
+StateNotifierProvider<SurveyFiltersController, SurveyFiltersState>((ref) {
   return SurveyFiltersController(ref.read(filterPreferencesStorageProvider));
 });
 

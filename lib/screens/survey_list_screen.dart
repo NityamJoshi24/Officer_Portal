@@ -135,12 +135,28 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
     ).then((_) => setState(() {}));
   }
 
-  void _logout() {
-    ref.read(authControllerProvider.notifier).logout();
+  Future<void> _logout() async {
+    final user = ref.read(authControllerProvider).currentUser;
+
+    if (user != null) {
+      final apiManager = ref.read(apiManagerProvider);
+      final result = await apiManager.logout(user.userToken, user.userId);
+      if (result.isSuccess) {
+        debugPrint('[Logout] API logout successful for userId: ${user.userId}');
+      } else {
+        debugPrint('[Logout] API logout failed: ${result.error}');
+        // We still proceed with local logout even if API call fails
+      }
+    }
+
+    await ref.read(authControllerProvider.notifier).logout();
     ref.read(surveyFiltersProvider.notifier).clear();
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+        const LoginScreen(),
         transitionsBuilder: (context, anim, secondaryAnimation, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 350),
@@ -172,8 +188,8 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
   Widget _buildDrawer() {
     final authState = ref.read(authControllerProvider);
     final user = authState.currentUser;
-    final selectedState = authState.selectedState;
-    final initials = (user?.name ?? 'U')
+    final selectedState = user?.districtName;
+    final initials = (user?.userFullName ?? 'U')
         .split(' ')
         .take(2)
         .map((w) => w.isNotEmpty ? w[0] : '')
@@ -213,8 +229,8 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
                   SizedBox(height: context.getHeight(10)),
                   Text(
                     selectedState == null || selectedState.isEmpty
-                        ? (user?.name ?? 'Supervisor')
-                        : '${user?.name ?? 'Supervisor'} • $selectedState',
+                        ? (user?.userFullName ?? 'Supervisor')
+                        : '${user?.userFullName ?? 'Supervisor'} • $selectedState',
                     style: TextStyle(
                       fontSize: context.getFontSize(AppDimens.fontL),
                       fontWeight: FontWeight.w700,
@@ -223,7 +239,7 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
                   ),
                   SizedBox(height: context.getHeight(2)),
                   Text(
-                    user?.username ?? '',
+                    user?.userName ?? '',
                     style: TextStyle(
                       fontSize: context.getFontSize(AppDimens.fontS),
                       color: AppColors.textSecondary,
