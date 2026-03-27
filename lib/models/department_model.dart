@@ -25,18 +25,18 @@ class DepartmentModel {
 
   factory DepartmentModel.fromJson(Map<String, dynamic> json) {
     return DepartmentModel(
-        departmentId: json['departmentId'] as int,
-        departmentName: json['departmentName'] as String? ?? '',
-        departmentType: json['departmentType'] as int ?? 0,
-        departmentCode: json['departmentCode'] as String? ?? '',
-        isActive: json['isActive'] as bool ?? true,
-        isDeleted: json['isDeleted'] as bool ?? false,
+      departmentId: json['departmentId'] as int,
+      departmentName: json['departmentName'] as String? ?? '',
+      departmentType: json['departmentType'] as int? ?? 0,
+      departmentCode: json['departmentCode'] as String? ?? '',
+      isActive: json['isActive'] as bool? ?? true,
+      isDeleted: json['isDeleted'] as bool? ?? false,
       createdOn: json['createdOn'] == null
-        ? null
+          ? null
           : DateTime.tryParse(json['createdOn'] as String),
       createdBy: json['createdBy'] as String?,
       modifiedOn: json['modifiedOn'] == null
-        ? null
+          ? null
           : DateTime.tryParse(json['modifiedOn'] as String),
       modifiedBy: json['modifiedBy'] as String?,
     );

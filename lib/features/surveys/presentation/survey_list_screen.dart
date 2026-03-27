@@ -2,13 +2,14 @@ import 'package:dcs_supervisor/core/commons/app_dimensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/commons/app_colors.dart';
-import '../core/providers.dart';
-import '../core/state/survey_filters_state.dart';
-import '../data/survey_dummy_data.dart';
-import '../models/survey_model.dart';
+import 'package:dcs_supervisor/core/commons/app_colors.dart';
+import 'package:dcs_supervisor/core/commons/app_enums.dart';
+import 'package:dcs_supervisor/core/providers.dart';
+import 'package:dcs_supervisor/core/state/survey_filters_state.dart';
+import 'package:dcs_supervisor/models/survey_model.dart';
+
+import '../../auth/presentation/login_screen.dart';
 import 'survey_detail_screen.dart';
-import 'login_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Filter model
@@ -23,12 +24,14 @@ class SurveyListScreen extends ConsumerStatefulWidget {
 }
 
 class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
-  final List<SurveyModel> _allSurveys = dummySurveys;
-
   final ScrollController _scrollController = ScrollController();
   bool _showBottomLoader = false;
 
   _ActiveFilters get _filters => ref.read(surveyFiltersProvider);
+  List<SurveyModel> get _surveys => ref.read(filteredSurveysProvider);
+  int get _pendingCount => ref.read(pendingSurveyCountProvider);
+  int get _approvedCount => ref.read(approvedSurveyCountProvider);
+  int get _rejectedCount => ref.read(rejectedSurveyCountProvider);
 
   @override
   void initState() {
@@ -70,44 +73,6 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
   Future<void> _clearAllFilters() async {
     await ref.read(surveyFiltersProvider.notifier).clear();
   }
-  // Filtered surveys ──────────────────────────────────────────────────
-  List<SurveyModel> get _filteredSurveys {
-    return _allSurveys.where((s) {
-      if (_filters.season != null &&
-          !_isSurveyInSeason(s.surveyDate, _filters.season!)) {
-        return false;
-      }
-      if (_filters.village != null &&
-          s.village.toLowerCase() != _filters.village!.toLowerCase()) {
-        return false;
-      }
-      if (_filters.taluka != null &&
-          s.taluka.toLowerCase() != _filters.taluka!.toLowerCase()) {
-        return false;
-      }
-      if (_filters.statuses != null &&
-          _filters.statuses!.isNotEmpty &&
-          !_filters.statuses!.contains(s.status)) {
-        return false;
-      }
-      if (_filters.dateRange != null) {
-        final d = s.surveyDate;
-        if (d.isBefore(_filters.dateRange!.start) ||
-            d.isAfter(_filters.dateRange!.end)) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
-  }
-
-  int get _pendingCount =>
-      _filteredSurveys.where((s) => s.status == SurveyStatus.pending).length;
-  int get _approvedCount =>
-      _filteredSurveys.where((s) => s.status == SurveyStatus.approved).length;
-  int get _rejectedCount =>
-      _filteredSurveys.where((s) => s.status == SurveyStatus.rejected).length;
-
   String _mon(int m) => const [
     '',
     'Jan',
@@ -125,7 +90,7 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
   ][m];
 
   void _openDetail(int index) {
-    final surveys = _filteredSurveys;
+    final surveys = ref.read(filteredSurveysProvider);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -136,21 +101,7 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
   }
 
   Future<void> _logout() async {
-    final user = ref.read(authControllerProvider).currentUser;
-
-    if (user != null) {
-      final apiManager = ref.read(apiManagerProvider);
-      final result = await apiManager.logout(user.userToken, user.userId);
-      if (result.isSuccess) {
-        debugPrint('[Logout] API logout successful for userId: ${user.userId}');
-      } else {
-        debugPrint('[Logout] API logout failed: ${result.error}');
-        // We still proceed with local logout even if API call fails
-      }
-    }
-
-    await ref.read(authControllerProvider.notifier).logout();
-    ref.read(surveyFiltersProvider.notifier).clear();
+    await ref.read(authSessionControllerProvider).logout();
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -840,7 +791,7 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
             ),
           ),
           child: Text(
-            '${_filteredSurveys.length} SURVEYS',
+            '${_surveys.length} SURVEYS',
             style: TextStyle(
               fontSize: context.getFontSize(AppDimens.fontXS),
               color: AppColors.primaryDark,
@@ -854,7 +805,7 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
   }
 
   Widget _buildSurveyList() {
-    final surveys = _filteredSurveys;
+    final surveys = ref.read(filteredSurveysProvider);
     if (surveys.isEmpty) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: context.getHeight(40)),
@@ -1912,16 +1863,6 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
     ];
   }
 
-  bool _isSurveyInSeason(DateTime surveyDate, String selectedSeason) {
-    final seasonRange = _seasonRangeFor(selectedSeason);
-    if (seasonRange == null) {
-      return false;
-    }
-
-    final start = seasonRange['start'] as DateTime;
-    final end = seasonRange['end'] as DateTime;
-    return !surveyDate.isBefore(start) && !surveyDate.isAfter(end);
-  }
 
   Map<String, dynamic>? _seasonRangeFor(String seasonName) {
     for (final season in _seasonRanges(DateTime.now())) {
@@ -1963,3 +1904,5 @@ class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
   }
 
 }
+
+

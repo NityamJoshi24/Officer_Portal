@@ -59,7 +59,7 @@ class UserModel {
       userFirstName: data['userFirstName'] as String? ?? '',
       userLastName: data['userLastName'] as String? ?? '',
       userFullName: data['userFullName'] as String? ?? '',
-      userType: data['userType'] as String ?? '',
+      userType: data['userType'] as String? ?? '',
       userMobileNumber: data['userMobileNumber'] as String? ?? '',
       userEmailAddress: data['userEmailAddress'] as String? ?? '',
       roleId: data['roleId'] as int,

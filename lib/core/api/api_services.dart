@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:http/http.dart' as http;
 
 import '../network_util.dart';
@@ -18,16 +20,51 @@ class ApiServices {
     'Accept': 'application/json',
   };
 
+  Future<void> Function()? _onUnauthorized;
+  bool _isHandlingUnauthorized = false;
+
   void setAuthToken(String token) {
+    debugPrint('[ApiServices] Setting auth token: $token');
     defaultHeaders['Authorization'] = 'Bearer $token';
+  }
+
+  void clearAuthToken() {
+    debugPrint('[ApiServices] Clearing auth token');
+    defaultHeaders.remove('Authorization');
+  }
+
+  void setUnauthorizedHandler(Future<void> Function()? handler) {
+    _onUnauthorized = handler;
+  }
+
+  Future<void> _notifyUnauthorized() async {
+    final handler = _onUnauthorized;
+    if (handler == null || _isHandlingUnauthorized) {
+      return;
+    }
+
+    _isHandlingUnauthorized = true;
+    try {
+      await Future.sync(handler);
+    } catch (error, stackTrace) {
+      debugPrint('[ApiServices] Unauthorized handler failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      _isHandlingUnauthorized = false;
+    }
   }
 
   Future<Result<dynamic>> get(
     String endpoint, {
     Map<String, String>? customHeaders,
+    bool isLoader = true,
   }) async {
     if (!(await NetworkUtil.isConnected())) {
       return Result.failure('No internet connection');
+    }
+
+    if (isLoader) {
+      EasyLoading.show(status: 'Loading...');
     }
 
     try {
@@ -38,14 +75,24 @@ class ApiServices {
           )
           .timeout(const Duration(seconds: 30));
 
+      if (isLoader) {
+        EasyLoading.dismiss();
+      }
       return _handleResponse(response);
     } on TimeoutException {
+      if (isLoader) {
+        EasyLoading.dismiss();
+      }
       return Result.failure('Request timeout');
     } on SocketException {
-      return Result.failure(
-        'Unable to reach server. Please check your connection.',
-      );
+      if (isLoader) {
+        EasyLoading.dismiss();
+      }
+      return Result.failure('Unable to reach server. Please check your connection.');
     } catch (e) {
+      if (isLoader) {
+        EasyLoading.dismiss();
+      }
       return Result.failure(e.toString());
     }
   }
@@ -54,9 +101,14 @@ class ApiServices {
     String endpoint,
     Map<String, dynamic> body, {
     Map<String, String>? customHeaders,
+    bool isLoader = true,
   }) async {
     if (!(await NetworkUtil.isConnected())) {
       return Result.failure('No internet connection');
+    }
+
+    if (isLoader) {
+      EasyLoading.show(status: 'Loading...');
     }
 
     try {
@@ -68,14 +120,24 @@ class ApiServices {
           )
           .timeout(const Duration(seconds: 30));
 
+      if (isLoader) {
+        EasyLoading.dismiss();
+      }
       return _handleResponse(response);
     } on TimeoutException {
+      if (isLoader) {
+        EasyLoading.dismiss();
+      }
       return Result.failure('Request timeout');
     } on SocketException {
-      return Result.failure(
-        'Unable to reach server. Please check your connection.',
-      );
+      if (isLoader) {
+        EasyLoading.dismiss();
+      }
+      return Result.failure('Unable to reach server. Please check your connection.');
     } catch (e) {
+      if (isLoader) {
+        EasyLoading.dismiss();
+      }
       return Result.failure(e.toString());
     }
   }
@@ -90,6 +152,10 @@ class ApiServices {
     }
 
     final message = _extractMessage(data);
+
+    if (response.statusCode == 401) {
+      unawaited(_notifyUnauthorized());
+    }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (_isBusinessFailure(data)) {

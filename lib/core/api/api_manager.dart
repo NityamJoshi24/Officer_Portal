@@ -7,6 +7,11 @@ import 'api_services.dart';
 class ApiManager {
   final api = ApiServices.instance;
 
+  static const Map<String, String> _publicHeaders = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
   static const String verifyCredentialsUrl =
       'https://betadcs.agristack.gov.in/agristackag/crop-survey-api-beta/agristack/v1/api/authenticate/user/verifyCredentials';
 
@@ -28,6 +33,7 @@ class ApiManager {
         'isMobileLogin': true,
         'isFarmerGrievance': false,
       },
+      customHeaders: _publicHeaders,
     );
   }
 
@@ -57,6 +63,7 @@ class ApiManager {
     return api.post(
       mobileLoginUrl,
       payload,
+      customHeaders: _publicHeaders,
     );
   }
 
@@ -75,7 +82,10 @@ class ApiManager {
   }
 
   Future<Result<dynamic>> getStateList() {
-    return api.get(stateListUrl);
+    return api.get(
+      stateListUrl,
+      customHeaders: _publicHeaders,
+    );
   }
 
   String? extractMessage(dynamic response) {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/commons/app_colors.dart';
-import '../core/commons/app_dimensions.dart';
-import '../core/providers.dart';
+import 'package:dcs_supervisor/core/commons/app_colors.dart';
+import 'package:dcs_supervisor/core/commons/app_dimensions.dart';
+import 'package:dcs_supervisor/core/providers.dart';
 
 class StateSelectionScreen extends ConsumerStatefulWidget {
   const StateSelectionScreen({super.key});
@@ -14,53 +14,12 @@ class StateSelectionScreen extends ConsumerStatefulWidget {
 
 class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
-
-  List<String> _states = [];
-  bool _isLoading = true;
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchStates();
-  }
-
-  Future<void> _fetchStates() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final response = await ref.refresh(stateListProvider.future);
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _states = response;
-        _isLoading = false;
-        _errorMessage =
-            response.isEmpty ? 'No states were returned by the server.' : null;
-      });
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-        _isLoading = false;
-      });
-    }
-  }
-
-  List<String> get _filteredStates {
+  List<String> _filteredStates(List<String> states) {
     final query = _searchCtrl.text.trim().toLowerCase();
     if (query.isEmpty) {
-      return _states;
+      return states;
     }
-    return _states.where((state) => state.toLowerCase().contains(query)).toList();
+    return states.where((state) => state.toLowerCase().contains(query)).toList();
   }
 
   @override
@@ -71,7 +30,9 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredStates = _filteredStates;
+    final statesAsync = ref.watch(stateListProvider);
+    final states = statesAsync.valueOrNull ?? const <String>[];
+    final filteredStates = _filteredStates(states);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -91,13 +52,26 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
                       _buildSearchCard(context),
                       SizedBox(height: context.getHeight(14)),
                       Expanded(
-                        child: _isLoading
-                            ? _buildLoadingState(context)
-                            : _errorMessage != null
-                                ? _buildErrorState(context)
-                                : filteredStates.isEmpty
-                                    ? _buildEmptyState(context)
-                                    : _buildStateList(context, filteredStates),
+                        child: statesAsync.when(
+                          loading: () => _buildLoadingState(context),
+                          error: (error, stackTrace) => _buildErrorState(
+                            context,
+                            error.toString().replaceFirst('Exception: ', ''),
+                          ),
+                          data: (loadedStates) {
+                            final visibleStates = _filteredStates(loadedStates);
+                            if (loadedStates.isEmpty) {
+                              return _buildEmptyState(
+                                context,
+                                message: 'No states were returned by the server.',
+                              );
+                            }
+                            if (visibleStates.isEmpty) {
+                              return _buildEmptyState(context);
+                            }
+                            return _buildStateList(context, visibleStates);
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -130,7 +104,7 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
     );
   }
 
-  Widget _buildErrorState(BuildContext context) {
+  Widget _buildErrorState(BuildContext context, String message) {
     return Center(
       child: Container(
         padding: EdgeInsets.all(context.getWidth(24)),
@@ -166,7 +140,7 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
             ),
             SizedBox(height: context.getHeight(6)),
             Text(
-              _errorMessage ?? '',
+              message,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textSecondary,
@@ -177,7 +151,7 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
             ),
             SizedBox(height: context.getHeight(16)),
             TextButton.icon(
-              onPressed: _fetchStates,
+              onPressed: () => ref.invalidate(stateListProvider),
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Retry'),
               style: TextButton.styleFrom(foregroundColor: AppColors.primaryDark),
@@ -487,7 +461,7 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, {String? message}) {
     return Center(
       child: Container(
         padding: EdgeInsets.all(context.getWidth(24)),
@@ -523,7 +497,7 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
             ),
             SizedBox(height: context.getHeight(6)),
             Text(
-              'Try a different keyword to find the state you want.',
+              message ?? 'Try a different keyword to find the state you want.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textSecondary,

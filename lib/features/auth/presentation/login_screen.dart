@@ -1,21 +1,15 @@
-import 'package:dcs_supervisor/screens/state_selector_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../core/commons/app_colors.dart';
-import '../core/commons/app_dimensions.dart';
-import '../core/commons/app_toast.dart';
-import '../core/providers.dart';
-import 'survey_list_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LoginScreen  —  3-step flow: Mobile Number → Password → OTP
-// Matches the green/white design language of the rest of the app.
-// ─────────────────────────────────────────────────────────────────────────────
-
-enum _LoginStep { mobilePassword, otp }
-
-
+import '../../../core/commons/app_colors.dart';
+import '../../../core/commons/app_dimensions.dart';
+import '../../../core/commons/app_enums.dart';
+import '../../../core/commons/app_toast.dart';
+import '../../../core/providers.dart';
+import '../../surveys/presentation/survey_list_screen.dart';
+import '../application/login_flow_state.dart';
+import 'state_selector_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -26,9 +20,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
-  _LoginStep _step = _LoginStep.mobilePassword;
-
-  // Controllers
   final _mobileCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final List<TextEditingController> _otpCtrls = List.generate(
@@ -36,17 +27,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     (_) => TextEditingController(),
   );
   final List<FocusNode> _otpFocus = List.generate(6, (_) => FocusNode());
-
   final _formKey = GlobalKey<FormState>();
+
   bool _obscurePass = true;
-  bool _isLoading = false;
-  String? _errorMsg;
-  String? _selectedState;
 
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
-
-  String? _userToken;
 
   @override
   void initState() {
@@ -73,164 +59,83 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _submitCredentials() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() {
-      _isLoading = true;
-      _errorMsg = null;
-    });
+  Future<void> _submitCredentials(LoginFlowState authFlow) async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
-      try {
-        final apiManager = ref.read(apiManagerProvider);
-        final result = await apiManager.verifyCredentials(
-          _mobileCtrl.text.trim(),
-          _passCtrl.text,
+    await ref.read(loginFlowControllerProvider.notifier).verifyCredentials(
+          mobile: _mobileCtrl.text.trim(),
+          password: _passCtrl.text,
         );
-
-        if (!result.isSuccess) {
-          AppToast.error(result.error ?? 'Invalid credentials');
-          setState(() {
-            _errorMsg = result.error ?? 'Invalid credentials';
-            _isLoading = false;
-          });
-          return;
-        }
-
-        _userToken = apiManager.extractSessionToken(result.data);
-        debugPrint(
-          '[Login] verifyCredentials success for ${_mobileCtrl.text.trim()}: ${result.data}',
-        );
-        debugPrint(
-          '[Login] extracted credential token: ${_userToken != null && _userToken!.isNotEmpty}',
-        );
-
-        setState(() {
-          _step = _LoginStep.otp;
-          _isLoading = false;
-        });
-
-      _fadeCtrl
-        ..reset()
-        ..forward();
-
-      Future.delayed(
-        const Duration(milliseconds: 100),
-        () => _otpFocus[0].requestFocus(),
-      );
-      } catch (e) {
-        AppToast.error(e.toString());
-        setState(() {
-          _errorMsg = e.toString();
-          _isLoading = false;
-        });
-      }
   }
 
   Future<void> _submitOtp() async {
     final otp = _otpCtrls.map((c) => c.text).join();
-    if (otp.length < 6) {
-      AppToast.error('Please enter all 6 digits.');
-      setState(() => _errorMsg = 'Please enter all 6 digits.');
-      return;
-    }
-    setState(() {
-      _isLoading = true;
-      _errorMsg = null;
-    });
-
-      try {
-        final apiManager = ref.read(apiManagerProvider);
-        final result = await apiManager.mobileLogin(
-          token: _userToken,
-          otp: otp,
+    final isSuccess = await ref.read(loginFlowControllerProvider.notifier).verifyOtp(
+          mobile: _mobileCtrl.text.trim(),
           password: _passCtrl.text,
-        mobile: _mobileCtrl.text.trim(),
-      );
-
-        if (!result.isSuccess) {
-          AppToast.error(result.error ?? 'OTP verification failed');
-          setState(() {
-            _errorMsg = result.error ?? 'OTP verification failed';
-            _isLoading = false;
-          });
-          return;
-        }
-
-        final data = result.data;
-        final isVerified = apiManager.isOtpVerified(data);
-        debugPrint('[Login] mobileLogin response: $data');
-        debugPrint('[Login] OTP verified: $isVerified');
-
-        if (!isVerified) {
-          AppToast.error(apiManager.extractMessage(data) ?? 'Invalid OTP');
-          setState(() {
-            _errorMsg = apiManager.extractMessage(data) ?? 'Invalid OTP';
-              _isLoading = false;
-            for (final c in _otpCtrls) {
-              c.clear();
-          }
-        });
-        _otpFocus[0].requestFocus();
-        return;
-        }
-
-        debugPrint(
-          '[Login] Login completed for ${_mobileCtrl.text.trim()} in state $_selectedState',
+          otp: otp,
         );
-        AppToast.success('Login successful');
-        final user = apiManager.parseUser(data);
-        if (user == null) {
-          AppToast.error('Failed to read user data. Please try again.');
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        }
-        apiManager.api.setAuthToken(user.userToken);
 
-        await ref.read(authControllerProvider.notifier).login(user);
-        if (!mounted) {
-          return;
-        }
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const SurveyListScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-              FadeTransition(opacity: animation, child: child),
-          transitionDuration: const Duration(milliseconds: 400),
-        ),
-      );
-      } catch (e) {
-        AppToast.error(e.toString());
-        setState(() {
-          _errorMsg = e.toString();
-          _isLoading = false;
-        for (final c in _otpCtrls) {
-          c.clear();
-        }
-      });
-      _otpFocus[0].requestFocus();
-    }
-  }
-
-  void _goBackToCredentials() {
-    setState(() {
-      _step = _LoginStep.mobilePassword;
-      _errorMsg = null;
+    if (!isSuccess) {
       for (final c in _otpCtrls) {
         c.clear();
       }
-    });
-    _fadeCtrl
-      ..reset()
-      ..forward();
+      _otpFocus[0].requestFocus();
+      return;
+    }
+
+    AppToast.success('Login successful');
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const SurveyListScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
   }
 
+  void _goBackToCredentials() {
+    ref.read(loginFlowControllerProvider.notifier).goBackToCredentials();
+    for (final c in _otpCtrls) {
+      c.clear();
+    }
+  }
 
-  // BUILD ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final authFlow = ref.watch(loginFlowControllerProvider);
+
+    ref.listen<LoginFlowState>(loginFlowControllerProvider, (previous, next) {
+      if (previous?.step != next.step) {
+        _fadeCtrl
+          ..reset()
+          ..forward();
+
+        if (next.step == LoginStep.otp) {
+          Future.delayed(
+            const Duration(milliseconds: 100),
+            () => _otpFocus[0].requestFocus(),
+          );
+        }
+      }
+
+      if (previous?.errorMessage != next.errorMessage &&
+          next.errorMessage != null &&
+          next.errorMessage!.isNotEmpty) {
+        AppToast.error(next.errorMessage!);
+      }
+    });
+
+    final isStateSelected = authFlow.selectedState != null;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -242,21 +147,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
           child: FadeTransition(
             opacity: _fadeAnim,
-            child: _step == _LoginStep.mobilePassword
-                ? _buildCredentialsForm()
-                : _buildOtpForm(),
+            child: authFlow.step == LoginStep.mobilePassword
+                ? _buildCredentialsForm(authFlow, isStateSelected)
+                : _buildOtpForm(authFlow),
           ),
         ),
       ),
     );
   }
 
-  // ── Logo + header ──────────────────────────────────────────────────────
   Widget _buildHeader({required String title, required String subtitle}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Logo mark
         Container(
           width: context.getWidth(52),
           height: context.getWidth(52),
@@ -307,10 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  // ── Credentials form ───────────────────────────────────────────────────
-  Widget _buildCredentialsForm() {
-    final isStateSelected = _selectedState != null;
-
+  Widget _buildCredentialsForm(LoginFlowState authFlow, bool isStateSelected) {
     return Form(
       key: _formKey,
       child: Column(
@@ -321,10 +221,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             subtitle: 'Sign in to your supervisor account to continue.',
           ),
           SizedBox(height: context.getHeight(36)),
-
-          _buildStateSelectorButton(),
+          _buildStateSelectorButton(authFlow),
           SizedBox(height: context.getHeight(24)),
-
           _fieldLabel('Mobile number'),
           SizedBox(height: context.getHeight(6)),
           _buildTextField(
@@ -343,13 +241,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             },
           ),
           SizedBox(height: context.getHeight(16)),
-
-          // Password
           _fieldLabel('Password'),
           SizedBox(height: context.getHeight(6)),
           _buildTextField(
             controller: _passCtrl,
-            hint: '••••••••',
+            hint: '********',
             icon: Icons.lock_outline_rounded,
             obscure: _obscurePass,
             enabled: isStateSelected,
@@ -370,8 +266,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             },
           ),
           SizedBox(height: context.getHeight(8)),
-
-          // Forgot password link
           Align(
             alignment: Alignment.centerRight,
             child: Text(
@@ -388,26 +282,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
           SizedBox(height: context.getHeight(24)),
-
-          // Error
-          if (_errorMsg != null) _buildErrorBanner(_errorMsg!),
-
-          // Submit button
+          if (authFlow.errorMessage != null) _buildErrorBanner(authFlow.errorMessage!),
           _buildPrimaryButton(
             label: 'Continue',
-            onTap: _isLoading || !isStateSelected ? null : _submitCredentials,
-            loading: _isLoading,
+            onTap: authFlow.isLoading || !isStateSelected
+                ? null
+                : () => _submitCredentials(authFlow),
+            loading: authFlow.isLoading,
           ),
           SizedBox(height: context.getHeight(32)),
-
         ],
       ),
     );
   }
 
-  // ── State Selector form ───────────────────────────────────────────────────────────
-
-  Widget _buildStateSelectorButton() {
+  Widget _buildStateSelectorButton(LoginFlowState authFlow) {
     return GestureDetector(
       onTap: () async {
         final selected = await Navigator.push(
@@ -417,10 +306,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         );
 
-        if (selected != null) {
-          setState(() {
-            _selectedState = selected;
-          });
+        if (selected != null && mounted) {
+          ref.read(loginFlowControllerProvider.notifier).selectState(selected);
         }
       },
       child: Container(
@@ -428,70 +315,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         padding: EdgeInsets.all(context.getWidth(14)),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(
-              context.getWidth(AppDimens.radiusM)),
+          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusM)),
           border: Border.all(
-            color: _selectedState == null
+            color: authFlow.selectedState == null
                 ? AppColors.chipBorder
                 : AppColors.primary,
           ),
         ),
         child: Row(
           children: [
-            Icon(Icons.location_on_outlined,
-                color: AppColors.textMuted),
+            Icon(Icons.location_on_outlined, color: AppColors.textMuted),
             SizedBox(width: context.getWidth(10)),
             Expanded(
               child: Text(
-                _selectedState ?? 'Select State',
+                authFlow.selectedState ?? 'Select State',
                 style: TextStyle(
                   fontSize: context.getFontSize(AppDimens.fontM),
-                  color: _selectedState == null
+                  color: authFlow.selectedState == null
                       ? AppColors.textMuted
                       : AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded,
-                size: context.getWidth(14),
-                color: AppColors.textMuted),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: context.getWidth(14),
+              color: AppColors.textMuted,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildOtpForm() {
+  Widget _buildOtpForm(LoginFlowState authFlow) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildHeader(
           title: 'Verify your\nidentity',
-          subtitle:
-              'A 6-digit OTP has been sent to\n${_mobileCtrl.text.trim()}',
+          subtitle: 'A 6-digit OTP has been sent to\n${_mobileCtrl.text.trim()}',
         ),
         SizedBox(height: context.getHeight(36)),
-
-        // OTP boxes
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(6, (i) => _buildOtpBox(i)),
         ),
         SizedBox(height: context.getHeight(24)),
-
-        // Error
-        if (_errorMsg != null) _buildErrorBanner(_errorMsg!),
-
-        // Verify button
+        if (authFlow.errorMessage != null) _buildErrorBanner(authFlow.errorMessage!),
         _buildPrimaryButton(
           label: 'Verify OTP',
-          onTap: _isLoading ? null : _submitOtp,
-          loading: _isLoading,
+          onTap: authFlow.isLoading ? null : _submitOtp,
+          loading: authFlow.isLoading,
         ),
         SizedBox(height: context.getHeight(20)),
-
-        // Resend + back
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -553,18 +431,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           fillColor: AppColors.surface,
           contentPadding: EdgeInsets.zero,
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              context.getWidth(AppDimens.radiusS),
-            ),
+            borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
             borderSide: const BorderSide(
               color: AppColors.chipBorder,
               width: 1.5,
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              context.getWidth(AppDimens.radiusS),
-            ),
+            borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
             borderSide: const BorderSide(color: AppColors.primary, width: 2),
           ),
         ),
@@ -582,15 +456,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  // ── Shared widgets ─────────────────────────────────────────────────────
   Widget _fieldLabel(String text) => Text(
-    text,
-    style: TextStyle(
-      fontSize: context.getFontSize(AppDimens.fontS),
-      fontWeight: FontWeight.w700,
-      color: AppColors.textPrimary,
-    ),
-  );
+        text,
+        style: TextStyle(
+          fontSize: context.getFontSize(AppDimens.fontS),
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+      );
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -654,27 +527,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           vertical: context.getHeight(14),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            context.getWidth(AppDimens.radiusS),
-          ),
+          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
           borderSide: const BorderSide(color: AppColors.chipBorder, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            context.getWidth(AppDimens.radiusS),
-          ),
+          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            context.getWidth(AppDimens.radiusS),
-          ),
+          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
           borderSide: const BorderSide(color: AppColors.rejected, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            context.getWidth(AppDimens.radiusS),
-          ),
+          borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
           borderSide: const BorderSide(color: AppColors.rejected, width: 2),
         ),
         errorStyle: TextStyle(
@@ -700,9 +565,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              context.getWidth(AppDimens.radiusS),
-            ),
+            borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
           ),
         ),
         child: loading
@@ -735,9 +598,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       ),
       decoration: BoxDecoration(
         color: AppColors.rejectedBg,
-        borderRadius: BorderRadius.circular(
-          context.getWidth(AppDimens.radiusS),
-        ),
+        borderRadius: BorderRadius.circular(context.getWidth(AppDimens.radiusS)),
         border: Border.all(color: AppColors.rejected.withValues(alpha: 0.3)),
       ),
       child: Row(
@@ -763,6 +624,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 }
-
-
-

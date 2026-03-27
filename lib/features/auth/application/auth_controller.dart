@@ -1,7 +1,7 @@
 import 'package:dcs_supervisor/core/user_preferences_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/user_model.dart';
+import '../../../models/user_model.dart';
 import 'auth_state.dart';
 
 class AuthController extends StateNotifier<AuthState> {

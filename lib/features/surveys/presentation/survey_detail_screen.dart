@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../core/commons/app_colors.dart';
-import '../core/commons/app_dimensions.dart';
-import '../core/commons/app_toast.dart';
-import '../models/survey_model.dart';
-import '../widgets/survey_map_widget.dart';
-import '../widgets/info_field_pair.dart';
-import '../widgets/reviewed_images_table.dart';
+import 'package:dcs_supervisor/core/commons/app_colors.dart';
+import 'package:dcs_supervisor/core/commons/app_dimensions.dart';
+import 'package:dcs_supervisor/core/commons/app_enums.dart';
+import 'package:dcs_supervisor/core/commons/app_toast.dart';
+import 'package:dcs_supervisor/models/survey_model.dart';
+import 'package:dcs_supervisor/widgets/info_field_pair.dart';
+import 'package:dcs_supervisor/widgets/reviewed_images_table.dart';
+import 'package:dcs_supervisor/widgets/survey_map_widget.dart';
 
 // ── Dummy photo data ──────────────────────────────────────────────────────────
 class SurveyPhoto {
@@ -22,8 +23,6 @@ class SurveyPhoto {
     required this.device,
   });
 }
-
-enum PhotoStatus { pending, approved, rejected }
 
 // Each item gets all 3 dummy photos as its "multiple images"
 const List<SurveyPhoto> _dummyPhotos = [

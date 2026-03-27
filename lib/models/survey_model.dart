@@ -2,7 +2,7 @@
 // Survey data models
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum SurveyStatus { pending, approved, rejected }
+import '../core/commons/app_enums.dart';
 
 class SurveyImage {
   final String landUsage;
