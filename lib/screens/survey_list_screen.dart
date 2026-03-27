@@ -1,11 +1,11 @@
-import 'package:dcs_supervisor/core/app_dimensions.dart';
+import 'package:dcs_supervisor/core/commons/app_dimensions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/app_colors.dart';
-import '../core/app_state.dart';
-import '../core/filter_preferences_storage.dart';
+import '../core/commons/app_colors.dart';
+import '../core/providers.dart';
+import '../core/state/survey_filters_state.dart';
 import '../data/survey_dummy_data.dart';
-import '../models/filter_preferences_entity.dart';
 import '../models/survey_model.dart';
 import 'survey_detail_screen.dart';
 import 'login_screen.dart';
@@ -13,85 +13,33 @@ import 'login_screen.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // Filter model
 // ─────────────────────────────────────────────────────────────────────────────
-class _ActiveFilters {
-  String? year;
-  String? season;
-  String? district;
-  String? taluka;
-  String? village;
-  DateTimeRange? dateRange;
+typedef _ActiveFilters = SurveyFiltersState;
 
-  // ✅ MULTI SELECT
-  List<SurveyStatus>? statuses;
-
-  bool get hasAny =>
-      year != null ||
-      season != null ||
-      district != null ||
-      taluka != null ||
-      village != null ||
-      dateRange != null ||
-      (statuses != null && statuses!.isNotEmpty);
-
-  _ActiveFilters copyWith({
-    Object? year = _sentinel,
-    Object? season = _sentinel,
-    Object? district = _sentinel,
-    Object? taluka = _sentinel,
-    Object? village = _sentinel,
-    Object? dateRange = _sentinel,
-    Object? statuses = _sentinel,
-  }) {
-    final f = _ActiveFilters();
-    f.year = year == _sentinel ? this.year : year as String?;
-    f.season = season == _sentinel ? this.season : season as String?;
-    f.district = district == _sentinel ? this.district : district as String?;
-    f.taluka = taluka == _sentinel ? this.taluka : taluka as String?;
-    f.village = village == _sentinel ? this.village : village as String?;
-    f.dateRange = dateRange == _sentinel
-        ? this.dateRange
-        : dateRange as DateTimeRange?;
-    f.statuses = statuses == _sentinel
-        ? this.statuses
-        : statuses as List<SurveyStatus>?;
-    return f;
-  }
-
-  static const _sentinel = Object();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class SurveyListScreen extends StatefulWidget {
+class SurveyListScreen extends ConsumerStatefulWidget {
   const SurveyListScreen({super.key});
 
   @override
-  State<SurveyListScreen> createState() => _SurveyListScreenState();
+  ConsumerState<SurveyListScreen> createState() => _SurveyListScreenState();
 }
 
-class _SurveyListScreenState extends State<SurveyListScreen> {
+class _SurveyListScreenState extends ConsumerState<SurveyListScreen> {
   final List<SurveyModel> _allSurveys = dummySurveys;
 
-  _ActiveFilters _filters = _ActiveFilters();
-
-  // Bottom loader
   final ScrollController _scrollController = ScrollController();
   bool _showBottomLoader = false;
-  bool _hasScrolledToBottom = false;
+
+  _ActiveFilters get _filters => ref.read(surveyFiltersProvider);
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _loadPersistedFilters();
   }
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
 
     final position = _scrollController.position;
-
-    /// 🔥 Detect when user is near bottom (not exact bottom)
     final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
 
     if (isNearBottom && !_showBottomLoader) {
@@ -99,7 +47,6 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
         _showBottomLoader = true;
       });
 
-      /// Simulate loading (or call API here)
       Future.delayed(const Duration(milliseconds: 1200), () {
         if (mounted) {
           setState(() {
@@ -116,96 +63,14 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     super.dispose();
   }
 
-  void _loadPersistedFilters() {
-    final savedFilters = FilterPreferencesStorage.instance.getFilterPreferences();
-    if (savedFilters == null) {
-      return;
-    }
-
-    setState(() {
-      _filters = _filtersFromEntity(savedFilters);
-    });
-  }
-
   Future<void> _updateFilters(_ActiveFilters nextFilters) async {
-    setState(() {
-      _filters = nextFilters;
-    });
-    await _persistFilters();
-  }
-
-  Future<void> _persistFilters() async {
-    if (!_filters.hasAny) {
-      await FilterPreferencesStorage.instance.clearFilterPreferences();
-      return;
-    }
-    await FilterPreferencesStorage.instance.saveFilterPreferences(
-      _entityFromFilters(_filters),
-    );
+    await ref.read(surveyFiltersProvider.notifier).update(nextFilters);
   }
 
   Future<void> _clearAllFilters() async {
-    await _updateFilters(_ActiveFilters());
+    await ref.read(surveyFiltersProvider.notifier).clear();
   }
-
-  _ActiveFilters _filtersFromEntity(FilterPreferencesEntity entity) {
-    final filters = _ActiveFilters();
-    filters.year = entity.year;
-    filters.season = entity.season;
-    filters.district = entity.district;
-    filters.taluka = entity.taluka;
-    filters.village = entity.village;
-
-    if (entity.dateRangeStartMillis != null &&
-        entity.dateRangeEndMillis != null) {
-      filters.dateRange = DateTimeRange(
-        start: DateTime.fromMillisecondsSinceEpoch(
-          entity.dateRangeStartMillis!,
-        ),
-        end: DateTime.fromMillisecondsSinceEpoch(entity.dateRangeEndMillis!),
-      );
-    }
-
-    if (entity.statusesCsv.isNotEmpty) {
-      final statuses = entity.statusesCsv
-          .split(',')
-          .map(_surveyStatusFromName)
-          .whereType<SurveyStatus>()
-          .toList();
-      if (statuses.isNotEmpty) {
-        filters.statuses = statuses;
-      }
-    }
-
-    return filters;
-  }
-
-  FilterPreferencesEntity _entityFromFilters(_ActiveFilters filters) {
-    return FilterPreferencesEntity(
-      id: 1,
-      year: filters.year,
-      season: filters.season,
-      district: filters.district,
-      taluka: filters.taluka,
-      village: filters.village,
-      dateRangeStartMillis: filters.dateRange?.start.millisecondsSinceEpoch,
-      dateRangeEndMillis: filters.dateRange?.end.millisecondsSinceEpoch,
-      statusesCsv: (filters.statuses ?? [])
-          .map((status) => status.name)
-          .join(','),
-    );
-  }
-
-  SurveyStatus? _surveyStatusFromName(String name) {
-    for (final status in SurveyStatus.values) {
-      if (status.name == name) {
-        return status;
-      }
-    }
-    return null;
-  }
-
-  // ── Filtered surveys ──────────────────────────────────────────────────
+  // Filtered surveys ──────────────────────────────────────────────────
   List<SurveyModel> get _filteredSurveys {
     return _allSurveys.where((s) {
       if (_filters.season != null &&
@@ -271,11 +136,12 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
   }
 
   void _logout() {
-    AppState.instance.logout();
+    ref.read(authControllerProvider.notifier).logout();
+    ref.read(surveyFiltersProvider.notifier).clear();
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const LoginScreen(),
-        transitionsBuilder: (_, anim, __, child) =>
+        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+        transitionsBuilder: (context, anim, secondaryAnimation, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 350),
       ),
@@ -285,6 +151,9 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
   // ─────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    ref.watch(authControllerProvider);
+    ref.watch(surveyFiltersProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: _buildDrawer(),
@@ -301,8 +170,9 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
 
   // ── Drawer ────────────────────────────────────────────────────────────
   Widget _buildDrawer() {
-    final user = AppState.instance.currentUser;
-    final selectedState = AppState.instance.selectedState;
+    final authState = ref.read(authControllerProvider);
+    final user = authState.currentUser;
+    final selectedState = authState.selectedState;
     final initials = (user?.name ?? 'U')
         .split(' ')
         .take(2)
@@ -353,7 +223,7 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                   ),
                   SizedBox(height: context.getHeight(2)),
                   Text(
-                    user?.email ?? '',
+                    user?.username ?? '',
                     style: TextStyle(
                       fontSize: context.getFontSize(AppDimens.fontS),
                       color: AppColors.textSecondary,
@@ -1518,8 +1388,6 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
                               builder: (context, child) {
                                 return Theme(
                                   data: Theme.of(context).copyWith(
-                                    useMaterial3: true,
-
                                     colorScheme: ColorScheme.light(
                                       primary: AppColors.primary,
                                       onPrimary: Colors.white,
@@ -2078,26 +1946,4 @@ class _SurveyListScreenState extends State<SurveyListScreen> {
     return DateTimeRange(start: clampedStart, end: clampedEnd);
   }
 
-  DateTimeRange _quickDateRange(int days) {
-    final end = DateTime.now();
-    final start = end.subtract(Duration(days: days));
-    return DateTimeRange(start: start, end: end);
-  }
-
-  /// Finds a matching preset if the draft date range was set from a preset.
-  DateTimeRange? _findMatchingPreset(DateTimeRange dr) {
-    for (final days in [7, 14, 30]) {
-      final preset = _quickDateRange(days);
-      if (dr.duration.inDays == preset.duration.inDays) return preset;
-    }
-    return null;
-  }
-
-  String _dateRangeLabel(DateTimeRange dr) {
-    final diff = dr.end.difference(dr.start).inDays;
-    if (diff == 7) return 'Last 7 days';
-    if (diff == 14) return 'Last 14 days';
-    if (diff == 30) return 'Last 30 days';
-    return '${dr.start.day} ${_mon(dr.start.month)} – ${dr.end.day} ${_mon(dr.end.month)}';
-  }
 }

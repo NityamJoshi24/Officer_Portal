@@ -2,8 +2,8 @@
 // InfoFieldPair — two-column label + value layout used in survey detail card
 // ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
-import '../core/app_dimensions.dart';
+import '../core/commons/app_colors.dart';
+import '../core/commons/app_dimensions.dart';
 
 class InfoFieldPair extends StatelessWidget {
   final String leftLabel;

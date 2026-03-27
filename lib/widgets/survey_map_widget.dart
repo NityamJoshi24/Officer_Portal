@@ -2,8 +2,8 @@
 // SurveyMapWidget — simulated aerial field map using CustomPainter
 // ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
-import '../core/app_dimensions.dart';
+import '../core/commons/app_colors.dart';
+import '../core/commons/app_dimensions.dart';
 
 class SurveyMapWidget extends StatelessWidget {
   final String coordinateLabel;

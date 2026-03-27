@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_colors.dart';
-import '../core/app_dimensions.dart';
+import '../core/commons/app_colors.dart';
+import '../core/commons/app_dimensions.dart';
+import '../core/commons/app_toast.dart';
 import '../models/survey_model.dart';
 import '../widgets/survey_map_widget.dart';
 import '../widgets/info_field_pair.dart';
@@ -156,7 +157,6 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
   int _selection = 0;
 
   // Change: bottom loader — visible after scrolled to end
-  bool _hasScrolledToBottom = false;
   bool _showBottomLoader = false;
 
   // Rejection form state
@@ -226,7 +226,6 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
       setState(() {
         _idx--;
         _selection = 0;
-        _hasScrolledToBottom = false;
         _showBottomLoader = false;
         _selectedRejectionReason = null;
         _remarksController.clear();
@@ -241,7 +240,6 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
       setState(() {
         _idx++;
         _selection = 0;
-        _hasScrolledToBottom = false;
         _showBottomLoader = false;
         _selectedRejectionReason = null;
         _remarksController.clear();
@@ -330,14 +328,11 @@ class _SurveyDetailScreenState extends State<SurveyDetailScreen>
   }
 
   void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      margin: EdgeInsets.all(context.getWidth(16)),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(context.getWidth(10))),
-    ));
+    if (color == AppColors.rejected) {
+      AppToast.error(msg);
+      return;
+    }
+    AppToast.success(msg);
   }
 
   void _cancel() => setState(() {
@@ -1111,18 +1106,20 @@ Widget _buildReviewedImagesCard(SurveyModel s) {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: context.getWidth(20),
-                height: context.getWidth(20),
-                child: Radio<int>(
-                  value: value,
-                  groupValue: _selection,
-                  onChanged: disabled
-                      ? null
-                      : (v) => setState(() => _selection = v!),
-                  activeColor: activeColor,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
+              RadioGroup<int>(
+                groupValue: _selection,
+                onChanged: disabled
+                    ? (_) {}
+                    : (v) => setState(() => _selection = v ?? _selection),
+                child: SizedBox(
+                  width: context.getWidth(20),
+                  height: context.getWidth(20),
+                  child: Radio<int>(
+                    value: value,
+                    activeColor: activeColor,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
               ),
               SizedBox(width: context.getWidth(4)),

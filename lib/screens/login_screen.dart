@@ -1,64 +1,36 @@
 import 'package:dcs_supervisor/screens/state_selector_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../core/app_colors.dart';
-import '../core/app_dimensions.dart';
-import '../core/app_state.dart';
+import '../core/commons/app_colors.dart';
+import '../core/commons/app_dimensions.dart';
+import '../core/commons/app_toast.dart';
+import '../core/providers.dart';
 import 'survey_list_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LoginScreen  —  3-step flow: Email → Password → OTP
+// LoginScreen  —  3-step flow: Mobile Number → Password → OTP
 // Matches the green/white design language of the rest of the app.
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum _LoginStep { emailPassword, otp }
+enum _LoginStep { mobilePassword, otp }
 
-const List<String> _indianStates = [
-  'Andhra Pradesh',
-  'Arunachal Pradesh',
-  'Assam',
-  'Bihar',
-  'Chhattisgarh',
-  'Goa',
-  'Gujarat',
-  'Haryana',
-  'Himachal Pradesh',
-  'Jharkhand',
-  'Karnataka',
-  'Kerala',
-  'Madhya Pradesh',
-  'Maharashtra',
-  'Manipur',
-  'Meghalaya',
-  'Mizoram',
-  'Nagaland',
-  'Odisha',
-  'Punjab',
-  'Rajasthan',
-  'Sikkim',
-  'Tamil Nadu',
-  'Telangana',
-  'Tripura',
-  'Uttar Pradesh',
-  'Uttarakhand',
-  'West Bengal',
-];
 
-class LoginScreen extends StatefulWidget {
+
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
-  _LoginStep _step = _LoginStep.emailPassword;
+  _LoginStep _step = _LoginStep.mobilePassword;
 
   // Controllers
-  final _emailCtrl = TextEditingController();
+  final _mobileCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  final _stateSearchCtrl = TextEditingController();
   final List<TextEditingController> _otpCtrls = List.generate(
     6,
     (_) => TextEditingController(),
@@ -71,13 +43,10 @@ class _LoginScreenState extends State<LoginScreen>
   String? _errorMsg;
   String? _selectedState;
 
-  // Demo credentials
-  static const _validEmail = 'supervisor@portal.com';
-  static const _validPassword = 'Admin@123';
-  static const _validOtp = '123456';
-
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
+
+  String? _userToken;
 
   @override
   void initState() {
@@ -92,9 +61,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _mobileCtrl.dispose();
     _passCtrl.dispose();
-    _stateSearchCtrl.dispose();
     for (final c in _otpCtrls) {
       c.dispose();
     }
@@ -105,42 +73,63 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // ── Step 1: validate email + password ──────────────────────────────────
   Future<void> _submitCredentials() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() {
       _isLoading = true;
       _errorMsg = null;
     });
-    await Future.delayed(const Duration(milliseconds: 900));
 
-    if (_emailCtrl.text.trim() == _validEmail &&
-        _passCtrl.text == _validPassword) {
-      setState(() {
-        _step = _LoginStep.otp;
-        _isLoading = false;
-      });
+      try {
+        final apiManager = ref.read(apiManagerProvider);
+        final result = await apiManager.verifyCredentials(
+          _mobileCtrl.text.trim(),
+          _passCtrl.text,
+        );
+
+        if (!result.isSuccess) {
+          AppToast.error(result.error ?? 'Invalid credentials');
+          setState(() {
+            _errorMsg = result.error ?? 'Invalid credentials';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        _userToken = apiManager.extractSessionToken(result.data);
+        debugPrint(
+          '[Login] verifyCredentials success for ${_mobileCtrl.text.trim()}: ${result.data}',
+        );
+        debugPrint(
+          '[Login] extracted credential token: ${_userToken != null && _userToken!.isNotEmpty}',
+        );
+
+        setState(() {
+          _step = _LoginStep.otp;
+          _isLoading = false;
+        });
+
       _fadeCtrl
         ..reset()
         ..forward();
-      // Auto-focus first OTP box
+
       Future.delayed(
         const Duration(milliseconds: 100),
         () => _otpFocus[0].requestFocus(),
       );
-    } else {
-      setState(() {
-        _errorMsg =
-            'Invalid email or password. Try supervisor@portal.com / Admin@123';
-        _isLoading = false;
-      });
-    }
+      } catch (e) {
+        AppToast.error(e.toString());
+        setState(() {
+          _errorMsg = e.toString();
+          _isLoading = false;
+        });
+      }
   }
 
-  // ── Step 2: validate OTP ──────────────────────────────────────────────
   Future<void> _submitOtp() async {
     final otp = _otpCtrls.map((c) => c.text).join();
     if (otp.length < 6) {
+      AppToast.error('Please enter all 6 digits.');
       setState(() => _errorMsg = 'Please enter all 6 digits.');
       return;
     }
@@ -148,13 +137,54 @@ class _LoginScreenState extends State<LoginScreen>
       _isLoading = true;
       _errorMsg = null;
     });
-    await Future.delayed(const Duration(milliseconds: 900));
 
-    if (otp == _validOtp) {
-      AppState.instance.login(_emailCtrl.text.trim(), state: _selectedState!);
-      if (!mounted) {
+      try {
+        final apiManager = ref.read(apiManagerProvider);
+        final result = await apiManager.mobileLogin(
+          token: _userToken,
+          otp: otp,
+          password: _passCtrl.text,
+        mobile: _mobileCtrl.text.trim(),
+      );
+
+        if (!result.isSuccess) {
+          AppToast.error(result.error ?? 'OTP verification failed');
+          setState(() {
+            _errorMsg = result.error ?? 'OTP verification failed';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        final data = result.data;
+        final isVerified = apiManager.isOtpVerified(data);
+        debugPrint('[Login] mobileLogin response: $data');
+        debugPrint('[Login] OTP verified: $isVerified');
+
+        if (!isVerified) {
+          AppToast.error(apiManager.extractMessage(data) ?? 'Invalid OTP');
+          setState(() {
+            _errorMsg = apiManager.extractMessage(data) ?? 'Invalid OTP';
+              _isLoading = false;
+            for (final c in _otpCtrls) {
+              c.clear();
+          }
+        });
+        _otpFocus[0].requestFocus();
         return;
-      }
+        }
+
+        debugPrint(
+          '[Login] Login completed for ${_mobileCtrl.text.trim()} in state $_selectedState',
+        );
+        AppToast.success('Login successful');
+        ref.read(authControllerProvider.notifier).login(
+              _mobileCtrl.text.trim(),
+              stateName: _selectedState!,
+            );
+        if (!mounted) {
+          return;
+        }
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
@@ -164,10 +194,11 @@ class _LoginScreenState extends State<LoginScreen>
           transitionDuration: const Duration(milliseconds: 400),
         ),
       );
-    } else {
-      setState(() {
-        _errorMsg = 'Incorrect OTP. Hint: use 123456';
-        _isLoading = false;
+      } catch (e) {
+        AppToast.error(e.toString());
+        setState(() {
+          _errorMsg = e.toString();
+          _isLoading = false;
         for (final c in _otpCtrls) {
           c.clear();
         }
@@ -178,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _goBackToCredentials() {
     setState(() {
-      _step = _LoginStep.emailPassword;
+      _step = _LoginStep.mobilePassword;
       _errorMsg = null;
       for (final c in _otpCtrls) {
         c.clear();
@@ -189,15 +220,8 @@ class _LoginScreenState extends State<LoginScreen>
       ..forward();
   }
 
-  List<String> get _filteredStates {
-    final query = _stateSearchCtrl.text.trim().toLowerCase();
-    if (query.isEmpty) return _indianStates;
-    return _indianStates
-        .where((state) => state.toLowerCase().contains(query))
-        .toList();
-  }
 
-  // ── BUILD ──────────────────────────────────────────────────────────────
+  // BUILD ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -211,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           child: FadeTransition(
             opacity: _fadeAnim,
-            child: _step == _LoginStep.emailPassword
+            child: _step == _LoginStep.mobilePassword
                 ? _buildCredentialsForm()
                 : _buildOtpForm(),
           ),
@@ -294,18 +318,20 @@ class _LoginScreenState extends State<LoginScreen>
           _buildStateSelectorButton(),
           SizedBox(height: context.getHeight(24)),
 
-          // Email
-          _fieldLabel('Email address'),
+          _fieldLabel('Mobile number'),
           SizedBox(height: context.getHeight(6)),
           _buildTextField(
-            controller: _emailCtrl,
-            hint: 'supervisor@portal.com',
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
+            controller: _mobileCtrl,
+            hint: 'Enter 10-digit mobile number',
+            icon: Icons.phone_iphone_rounded,
+            keyboardType: TextInputType.phone,
             enabled: isStateSelected,
+            maxLength: 10,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Email is required';
-              if (!v.contains('@')) return 'Enter a valid email';
+              final value = v?.trim() ?? '';
+              if (value.isEmpty) return 'Mobile number is required';
+              if (value.length != 10) return 'Enter a valid 10-digit mobile number';
               return null;
             },
           ),
@@ -367,8 +393,6 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           SizedBox(height: context.getHeight(32)),
 
-          // Demo credentials hint
-          _buildDemoHint('Demo credentials: supervisor@portal.com / Admin@123'),
         ],
       ),
     );
@@ -431,197 +455,14 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildStateSelector() {
-    final filteredStates = _filteredStates;
-    final hasSearchQuery = _stateSearchCtrl.text.trim().isNotEmpty;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(context.getWidth(16)),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          context.getWidth(AppDimens.radiusM),
-        ),
-        border: Border.all(
-          color: _selectedState == null
-              ? AppColors.chipBorder
-              : AppColors.primary.withValues(alpha: 0.35),
-          width: 1.4,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Select State',
-                      style: TextStyle(
-                        fontSize: context.getFontSize(AppDimens.fontL),
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: context.getHeight(4)),
-                    Text(
-                      _selectedState == null
-                          ? 'Choose a state of India before entering login details.'
-                          : 'Selected state: $_selectedState',
-                      style: TextStyle(
-                        fontSize: context.getFontSize(AppDimens.fontS),
-                        color: _selectedState == null
-                            ? AppColors.textSecondary
-                            : AppColors.primaryDark,
-                        fontWeight: _selectedState == null
-                            ? FontWeight.w500
-                            : FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_selectedState != null)
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.getWidth(10),
-                    vertical: context.getHeight(6),
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(context.getWidth(999)),
-                  ),
-                  child: Text(
-                    'Ready',
-                    style: TextStyle(
-                      fontSize: context.getFontSize(AppDimens.fontXS + 1),
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryDark,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          SizedBox(height: context.getHeight(14)),
-          _buildTextField(
-            controller: _stateSearchCtrl,
-            hint: 'Search state',
-            icon: Icons.search_rounded,
-            onChanged: (_) => setState(() {}),
-          ),
-          SizedBox(height: context.getHeight(12)),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: hasSearchQuery
-                ? filteredStates.isEmpty
-                    ? Padding(
-                        key: const ValueKey('state-empty'),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: context.getWidth(2),
-                          vertical: context.getHeight(4),
-                        ),
-                        child: Text(
-                          'No matching state found.',
-                          style: TextStyle(
-                            fontSize: context.getFontSize(AppDimens.fontS),
-                            color: AppColors.textMuted,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      )
-                    : Wrap(
-                        key: const ValueKey('state-suggestions'),
-                        spacing: context.getWidth(8),
-                        runSpacing: context.getHeight(8),
-                        children: filteredStates.map((state) {
-                          final isSelected = state == _selectedState;
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(
-                              context.getWidth(999),
-                            ),
-                            onTap: () {
-                              FocusScope.of(context).unfocus();
-                              setState(() {
-                                _selectedState = state;
-                                _errorMsg = null;
-                                _stateSearchCtrl.text = state;
-                              });
-                            },
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: context.getWidth(12),
-                                vertical: context.getHeight(10),
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.primaryLight
-                                    : AppColors.background,
-                                borderRadius: BorderRadius.circular(
-                                  context.getWidth(999),
-                                ),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.primary.withValues(alpha: 0.4)
-                                      : AppColors.divider,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    state,
-                                    style: TextStyle(
-                                      fontSize: context.getFontSize(
-                                        AppDimens.fontS,
-                                      ),
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: isSelected
-                                          ? AppColors.primaryDark
-                                          : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  if (isSelected) ...[
-                                    SizedBox(width: context.getWidth(6)),
-                                    Icon(
-                                      Icons.check_circle_rounded,
-                                      color: AppColors.primary,
-                                      size: context.getWidth(16),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      )
-                : Text(
-                    key: const ValueKey('state-hint'),
-                    'Start typing to search and select a state.',
-                    style: TextStyle(
-                      fontSize: context.getFontSize(AppDimens.fontS),
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildOtpForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildHeader(
           title: 'Verify your\nidentity',
-          subtitle: 'A 6-digit OTP has been sent to\n${_emailCtrl.text.trim()}',
+          subtitle:
+              'A 6-digit OTP has been sent to\n${_mobileCtrl.text.trim()}',
         ),
         SizedBox(height: context.getHeight(36)),
 
@@ -658,7 +499,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   SizedBox(width: context.getWidth(4)),
                   Text(
-                    'Change email',
+                    'Change login details',
                     style: TextStyle(
                       fontSize: context.getFontSize(AppDimens.fontS),
                       color: AppColors.textSecondary,
@@ -679,7 +520,6 @@ class _LoginScreenState extends State<LoginScreen>
           ],
         ),
         SizedBox(height: context.getHeight(32)),
-        _buildDemoHint('Demo OTP: 123456'),
       ],
     );
   }
@@ -752,6 +592,8 @@ class _LoginScreenState extends State<LoginScreen>
     TextInputType keyboardType = TextInputType.text,
     bool obscure = false,
     bool enabled = true,
+    int? maxLength,
+    List<TextInputFormatter>? inputFormatters,
     Widget? suffixIcon,
     ValueChanged<String>? onChanged,
     String? Function(String?)? validator,
@@ -761,6 +603,8 @@ class _LoginScreenState extends State<LoginScreen>
       obscureText: obscure,
       keyboardType: keyboardType,
       enabled: enabled,
+      maxLength: maxLength,
+      inputFormatters: inputFormatters,
       onChanged: onChanged,
       style: TextStyle(
         fontSize: context.getFontSize(AppDimens.fontM),
@@ -769,6 +613,7 @@ class _LoginScreenState extends State<LoginScreen>
       ),
       validator: validator,
       decoration: InputDecoration(
+        counterText: '',
         hintText: hint,
         hintStyle: TextStyle(
           color: AppColors.textHint,
@@ -910,41 +755,7 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     );
   }
-
-  Widget _buildDemoHint(String text) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.getWidth(14),
-        vertical: context.getHeight(12),
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primaryTint,
-        borderRadius: BorderRadius.circular(
-          context.getWidth(AppDimens.radiusS),
-        ),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.lightbulb_outline_rounded,
-            size: context.getWidth(14),
-            color: AppColors.primaryDark,
-          ),
-          SizedBox(width: context.getWidth(8)),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: context.getFontSize(AppDimens.fontXS + 1),
-                color: AppColors.primaryDark,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
+
+

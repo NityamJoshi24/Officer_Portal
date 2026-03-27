@@ -1,54 +1,66 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/app_colors.dart';
-import '../core/app_dimensions.dart';
+import '../core/commons/app_colors.dart';
+import '../core/commons/app_dimensions.dart';
+import '../core/providers.dart';
 
-class StateSelectionScreen extends StatefulWidget {
+class StateSelectionScreen extends ConsumerStatefulWidget {
   const StateSelectionScreen({super.key});
 
   @override
-  State<StateSelectionScreen> createState() => _StateSelectionScreenState();
+  ConsumerState<StateSelectionScreen> createState() => _StateSelectionScreenState();
 }
 
-class _StateSelectionScreenState extends State<StateSelectionScreen> {
+class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
 
-  final List<String> _states = [
-    'Andhra Pradesh',
-    'Arunachal Pradesh',
-    'Assam',
-    'Bihar',
-    'Chhattisgarh',
-    'Goa',
-    'Gujarat',
-    'Haryana',
-    'Himachal Pradesh',
-    'Jharkhand',
-    'Karnataka',
-    'Kerala',
-    'Madhya Pradesh',
-    'Maharashtra',
-    'Manipur',
-    'Meghalaya',
-    'Mizoram',
-    'Nagaland',
-    'Odisha',
-    'Punjab',
-    'Rajasthan',
-    'Sikkim',
-    'Tamil Nadu',
-    'Telangana',
-    'Tripura',
-    'Uttar Pradesh',
-    'Uttarakhand',
-    'West Bengal',
-  ];
+  List<String> _states = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStates();
+  }
+
+  Future<void> _fetchStates() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await ref.refresh(stateListProvider.future);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _states = response;
+        _isLoading = false;
+        _errorMessage =
+            response.isEmpty ? 'No states were returned by the server.' : null;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
 
   List<String> get _filteredStates {
     final query = _searchCtrl.text.trim().toLowerCase();
-    if (query.isEmpty) return _states;
-
-    return _states.where((s) => s.toLowerCase().contains(query)).toList();
+    if (query.isEmpty) {
+      return _states;
+    }
+    return _states.where((state) => state.toLowerCase().contains(query)).toList();
   }
 
   @override
@@ -79,14 +91,96 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
                       _buildSearchCard(context),
                       SizedBox(height: context.getHeight(14)),
                       Expanded(
-                        child: filteredStates.isEmpty
-                            ? _buildEmptyState(context)
-                            : _buildStateList(context, filteredStates),
+                        child: _isLoading
+                            ? _buildLoadingState(context)
+                            : _errorMessage != null
+                                ? _buildErrorState(context)
+                                : filteredStates.isEmpty
+                                    ? _buildEmptyState(context)
+                                    : _buildStateList(context, filteredStates),
                       ),
                     ],
                   ),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(color: AppColors.primaryDark),
+          SizedBox(height: context.getHeight(16)),
+          Text(
+            'Fetching states...',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: context.getFontSize(AppDimens.fontS),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(context.getWidth(24)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(context.getWidth(24)),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: context.getWidth(58),
+              height: context.getWidth(58),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEDED),
+                borderRadius: BorderRadius.circular(context.getWidth(18)),
+              ),
+              child: Icon(
+                Icons.wifi_off_rounded,
+                color: Colors.red.shade400,
+                size: context.getWidth(26),
+              ),
+            ),
+            SizedBox(height: context.getHeight(14)),
+            Text(
+              'Could not load states',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: context.getFontSize(AppDimens.fontL),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: context.getHeight(6)),
+            Text(
+              _errorMessage ?? '',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: context.getFontSize(AppDimens.fontS),
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
+            SizedBox(height: context.getHeight(16)),
+            TextButton.icon(
+              onPressed: _fetchStates,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+              style: TextButton.styleFrom(foregroundColor: AppColors.primaryDark),
             ),
           ],
         ),
@@ -350,19 +444,13 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                state,
-                                style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: context.getFontSize(AppDimens.fontM),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          state,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: context.getFontSize(AppDimens.fontM),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         SizedBox(height: context.getHeight(4)),
                         Text(

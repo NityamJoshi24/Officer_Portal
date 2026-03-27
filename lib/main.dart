@@ -1,10 +1,11 @@
-import 'package:dcs_supervisor/core/app_colors.dart';
-import 'package:dcs_supervisor/core/app_state.dart';
+import 'package:dcs_supervisor/core/commons/app_colors.dart';
 import 'package:dcs_supervisor/core/filter_preferences_storage.dart';
+import 'package:dcs_supervisor/core/providers.dart';
 import 'package:dcs_supervisor/screens/login_screen.dart';
 import 'package:dcs_supervisor/screens/survey_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,14 +16,16 @@ Future<void> main() async {
     ),
   );
   await FilterPreferencesStorage.init();
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+
     return MaterialApp(
       title: 'Supervisor Portal',
       debugShowCheckedModeBanner: false,
@@ -37,9 +40,9 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: AppState.instance.isLoggedIn
+      home: authState.isLoggedIn
           ? const SurveyListScreen()
-          : const SurveyListScreen(),
+          : const LoginScreen(),
     );
   }
 }
